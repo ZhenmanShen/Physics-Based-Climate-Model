@@ -1,4 +1,5 @@
 import torch.nn as nn
+from .unet import UNet
 from omegaconf import DictConfig
 
 
@@ -9,6 +10,12 @@ def get_model(cfg: DictConfig):
     model_kwargs["n_output_channels"] = len(cfg.data.output_vars)
     if cfg.model.type == "simple_cnn":
         model = SimpleCNN(**model_kwargs)
+    elif cfg.model.type == "unet": # Added unet here
+        return UNet(
+            in_channels=len(cfg.data.input_vars),
+            out_channels=len(cfg.data.output_vars),
+            base_channels=cfg.model.base_channels,
+        )
     else:
         raise ValueError(f"Unknown model type: {cfg.model.type}")
     return model

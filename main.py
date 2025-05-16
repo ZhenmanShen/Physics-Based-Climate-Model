@@ -34,6 +34,7 @@ from src.utils import (
     get_trainer_config,
 )
 
+torch.set_float32_matmul_precision('high') # Only for RTX 3060 GPU (DELETE if not using Nvidia GPUs)
 
 # Setup logging
 log = get_logger(__name__)
