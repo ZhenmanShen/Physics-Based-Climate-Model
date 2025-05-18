@@ -2,22 +2,19 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-# DoubleConv block with BatchNorm and Dropout
 class DoubleConv(nn.Module):
-    def __init__(self, in_channels, out_channels, dropout=0.1):
+    def __init__(self, in_channels, out_channels):
         super().__init__()
         self.net = nn.Sequential(
             nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
-            nn.BatchNorm2d(out_channels),
             nn.ReLU(inplace=True),
-            nn.Dropout2d(p=dropout),
             nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
-            nn.BatchNorm2d(out_channels),
             nn.ReLU(inplace=True)
         )
 
     def forward(self, x):
         return self.net(x)
+
 
 class UNet(nn.Module):
     def __init__(self, in_channels=5, out_channels=2, base_channels=64):
@@ -46,18 +43,8 @@ class UNet(nn.Module):
         self.up1 = nn.ConvTranspose2d(base_channels * 2, base_channels, kernel_size=2, stride=2)
         self.upconv1 = DoubleConv(base_channels * 2, base_channels)
 
-        # Separate output heads
-        self.tas_head = nn.Sequential(
-            nn.Conv2d(base_channels, base_channels // 2, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Conv2d(base_channels // 2, 1, kernel_size=1)
-        )
-
-        self.pr_head = nn.Sequential(
-            nn.Conv2d(base_channels, base_channels // 2, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Conv2d(base_channels // 2, 1, kernel_size=1)
-        )
+        # Output
+        self.final_conv = nn.Conv2d(base_channels, out_channels, kernel_size=1)
 
     def forward(self, x):
         # Encoder
@@ -78,8 +65,4 @@ class UNet(nn.Module):
         u1 = self.up1(u2)
         u1 = self.upconv1(torch.cat([u1, d1], dim=1))
 
-        # Separate heads
-        tas = self.tas_head(u1)
-        pr = self.pr_head(u1)
-
-        return torch.cat([tas, pr], dim=1)
+        return self.final_conv(u1)

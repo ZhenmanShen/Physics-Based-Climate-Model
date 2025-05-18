@@ -1,0 +1,10 @@
+# @package _global_.model
+
+type: vit
+
+# Vision Transformer parameters
+embed_dim: 128        # Size of the token embedding
+depth: 4              # Number of transformer layers
+n_heads: 4            # Number of attention heads
+mlp_dim: 256          # Size of feedforward network inside each layer
+dropout: 0.1          # Dropout for regularization

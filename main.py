@@ -15,7 +15,6 @@ from lightning.pytorch import LightningDataModule
 from lightning.pytorch.loggers import WandbLogger
 from omegaconf import DictConfig, OmegaConf
 from torch.utils.data import DataLoader, Dataset
-import torch.nn.functional as F
 
 
 try:
@@ -35,7 +34,6 @@ from src.utils import (
     get_trainer_config,
 )
 
-torch.set_float32_matmul_precision('high') # Only for RTX 3060 GPU (DELETE if not using Nvidia GPUs)
 
 # Setup logging
 log = get_logger(__name__)
@@ -329,30 +327,12 @@ class ClimateEmulationModule(pl.LightningModule):
 
     def on_fit_start(self) -> None:
         self.normalizer = self.trainer.datamodule.normalizer  # Access the normalizer from the datamodule
-    
-    # CHANGED
+
     def training_step(self, batch, batch_idx):
         x, y_true_norm = batch
         y_pred_norm = self(x)
-
-        # Split predictions and targets
-        pred_tas = y_pred_norm[:, 0]
-        pred_pr = y_pred_norm[:, 1]
-        true_tas = y_true_norm[:, 0]
-        true_pr = y_true_norm[:, 1]
-
-        # Compute individual losses
-        loss_tas = F.mse_loss(pred_tas, true_tas)
-        loss_pr = F.mse_loss(pred_pr, true_pr)
-
-        # Weighted sum: prioritize tas
-        loss = 2.0 * loss_tas + 1.0 * loss_pr
-
-        # Logging
+        loss = self.criterion(y_pred_norm, y_true_norm)
         self.log("train/loss", loss, prog_bar=True, batch_size=x.size(0))
-        self.log("train/loss_tas", loss_tas, batch_size=x.size(0))
-        self.log("train/loss_pr", loss_pr, batch_size=x.size(0))
-
         return loss
 
     def validation_step(self, batch, batch_idx):

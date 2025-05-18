@@ -1,6 +1,8 @@
 import torch.nn as nn
 from .unet import UNet
 from omegaconf import DictConfig
+from .vit_climate import ViTClimate
+
 
 
 def get_model(cfg: DictConfig):
@@ -15,6 +17,11 @@ def get_model(cfg: DictConfig):
             in_channels=len(cfg.data.input_vars),
             out_channels=len(cfg.data.output_vars),
             base_channels=cfg.model.base_channels,
+        )
+    elif cfg.model.type == "vit":
+        return ViTClimate(
+            in_channels=len(cfg.data.input_vars),
+            out_channels=len(cfg.data.output_vars)
         )
     else:
         raise ValueError(f"Unknown model type: {cfg.model.type}")
