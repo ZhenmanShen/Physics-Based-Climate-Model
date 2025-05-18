@@ -2,7 +2,7 @@
 
 defaults:
   - data: default
-  - model: unet # Must change 
+  - model: vit # Must change 
   - training: default
   - trainer: default
   - _self_
