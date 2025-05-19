@@ -2,7 +2,7 @@
 
 defaults:
   - data: default
-  - model: cnn_rnn # Must change 
+  - model: unetAttention # Must change 
   - training: default
   - trainer: default
   - _self_

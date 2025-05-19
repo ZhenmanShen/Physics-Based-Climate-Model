@@ -5,7 +5,7 @@ accelerator: auto  # force to use GPU so I don't need to write in code
 devices: 1  # Will be auto-detected in code
 deterministic: true
 num_sanity_val_steps: 0
-precision: 16 # Decrease from 32 to increase speed
+precision: 32 # Decrease from 32 to increase speed
 
 # Define callbacks as a list for Hydra instantiation
 callbacks:

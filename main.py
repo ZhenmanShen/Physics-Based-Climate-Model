@@ -22,7 +22,7 @@ try:
 except ImportError:
     wandb = None
 
-from src.cnnRnn import get_model
+from src.unetAttention import get_model
 from src.utils import (
     Normalizer,
     calculate_weighted_metric,

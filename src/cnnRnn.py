@@ -61,8 +61,5 @@ class CNNtoRNN(nn.Module):
         # Here just expand by repeating width dimension
         output = fc_out.unsqueeze(-1).repeat(1, 1, 1, 72)  # (32, 2, 48, 72)
 
-        # Finally, aggregate batch dimension by averaging to produce batch=1 output
-        output = output.mean(dim=0, keepdim=True)  # (1, 2, 48, 72)
-
         return output
 
