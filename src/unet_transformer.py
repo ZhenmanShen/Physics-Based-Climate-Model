@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-# ----------  Small helpers ----------
+# Hepler Functions
 def conv_bn_relu(in_ch, out_ch, k=3, s=1, p=1):
     return nn.Sequential(
         nn.Conv2d(in_ch, out_ch, k, s, p, bias=False),
@@ -29,7 +29,7 @@ class UpBlock(nn.Module):
         return self.conv(x)
 
 
-# ----------  ViT bottleneck ----------
+# ViT bottleneck
 class PatchEmbed(nn.Module):
     """Flatten (H, W) into N patches and embed"""
     def __init__(self, in_ch, emb_dim, patch_size):
@@ -95,7 +95,7 @@ class ViT_Bottleneck(nn.Module):
                           mode="bilinear", align_corners=False)
         return x                                              # B,C,48,72
 
-# ----------  Full UNet-Transformer ----------
+# Full UNet-Transformer
 class UNetTransformer(nn.Module):
     """
     Encoder-Decoder UNet with a ViT bottleneck.
@@ -141,16 +141,16 @@ class UNetTransformer(nn.Module):
 
     def forward(self, x):
         skips = []
-        # ------ encoder -------
+        # encoder
         for enc, pool in zip(self.downs, self.pools):
             x = enc(x)
             skips.append(x)
             x = pool(x)
 
-        # ------ bottleneck ----
+        # bottleneck
         x = self.vit(x)
 
-        # ------ decoder -------
+        # decoder
         for up, skip in zip(self.ups, reversed(skips)):
             x = up(x, skip)
 

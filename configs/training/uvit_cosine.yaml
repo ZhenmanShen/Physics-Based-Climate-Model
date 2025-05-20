@@ -2,11 +2,6 @@
 
 lr: 5e-4
 
-
-# ------------------------------------------------------------------
-# Optimiser & scheduler tuned for the UNet-ViT run
-# ------------------------------------------------------------------
-
 optimizer:
   _target_: torch.optim.AdamW
   lr: ${.lr}  

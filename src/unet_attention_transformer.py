@@ -26,9 +26,8 @@ def conv_bn_relu(in_ch: int, out_ch: int, k=3, s=1, p=1):
         nn.GELU()
     )
 
-# --------------------------------------------------------------------- #
+
 # Channel & spatial attention building blocks
-# --------------------------------------------------------------------- #
 class SEBlock(nn.Module):
     """Squeeze-and-Excitation (channel attention)."""
     def __init__(self, in_ch: int, reduction: int = 8):
@@ -76,9 +75,7 @@ class AttentionGate(nn.Module):
         return x * psi
 
 
-# --------------------------------------------------------------------- #
 # Up-block with optional AttentionGate + SE after fusion
-# --------------------------------------------------------------------- #
 class UpBlock(nn.Module):
     def __init__(self, in_ch: int, skip_ch: int, out_ch: int,
                  use_attn: bool = True, use_se: bool = False):
@@ -111,9 +108,7 @@ class UpBlock(nn.Module):
         return x
 
 
-# --------------------------------------------------------------------- #
 # ViT bottleneck (unchanged from baseline)
-# --------------------------------------------------------------------- #
 class PatchEmbed(nn.Module):
     """Flatten (H,W) → N patches and embed."""
     def __init__(self, in_ch, emb_dim, patch_size):
@@ -176,9 +171,7 @@ class ViT_Bottleneck(nn.Module):
         return x                                  # B,C,48,72
 
 
-# --------------------------------------------------------------------- #
 # Full UNet-Attention-Transformer
-# --------------------------------------------------------------------- #
 class UNetAttentionTransformer(nn.Module):
     """
     Encoder-Decoder UNet with ViT bottleneck.
@@ -192,7 +185,7 @@ class UNetAttentionTransformer(nn.Module):
                  se_reduction: int = 8):
         super().__init__()
 
-        # 1. Encoder ---------------------------------------------------- #
+        # 1. Encoder
         self.downs = nn.ModuleList()
         self.pools = nn.ModuleList()
         ch = in_ch
@@ -204,7 +197,7 @@ class UNetAttentionTransformer(nn.Module):
             self.pools.append(nn.MaxPool2d(2))
             ch = out
 
-        # 2. Bottleneck ------------------------------------------------- #
+        # 2. Bottleneck
         self.vit = ViT_Bottleneck(ch,
                                   emb_dim=vit_dim,
                                   num_layers=vit_layers,
@@ -212,7 +205,7 @@ class UNetAttentionTransformer(nn.Module):
                                   patch_size=patch_size)
         self.se_vit = SEBlock(ch, se_reduction)
 
-        # 3. Decoder ---------------------------------------------------- #
+        # 3. Decoder
         self.ups = nn.ModuleList()
         for d in reversed(range(depth)):
             skip_ch = base_ch * 2 ** d
@@ -222,7 +215,7 @@ class UNetAttentionTransformer(nn.Module):
             )
             ch = skip_ch
 
-        # 4. Prediction head ------------------------------------------- #
+        # 4. Prediction head
         self.head = nn.Conv2d(ch, out_ch, kernel_size=1)
 
     def forward(self, x):
@@ -244,9 +237,6 @@ class UNetAttentionTransformer(nn.Module):
         return self.head(x)
 
 
-# --------------------------------------------------------------------- #
-# Convenience factory
-# --------------------------------------------------------------------- #
 def get_model(cfg):
     """
     Hydra-style factory.
@@ -263,9 +253,7 @@ def get_model(cfg):
         raise ValueError(f"Unknown model type: {cfg.model.type}")
 
 
-# --------------------------------------------------------------------- #
-# Quick sanity test
-# --------------------------------------------------------------------- #
+# sanity test
 if __name__ == "__main__":
     dummy = torch.randn(2, 5, 48, 72)   # 5 input channels
     net   = UNetAttentionTransformer(in_ch=5, out_ch=2)
