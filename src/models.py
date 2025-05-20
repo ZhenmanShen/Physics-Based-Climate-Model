@@ -2,7 +2,7 @@ import torch.nn as nn
 from .unet import UNet
 from omegaconf import DictConfig
 from .vit_climate import ViTClimate
-
+from .cnnLstm import CNN_LSTM
 
 
 def get_model(cfg: DictConfig):
@@ -23,6 +23,8 @@ def get_model(cfg: DictConfig):
             in_channels=len(cfg.data.input_vars),
             out_channels=len(cfg.data.output_vars)
         )
+    elif cfg.model.type == "cnn_lstm": 
+        return CNN_LSTM(**model_kwargs)
     else:
         raise ValueError(f"Unknown model type: {cfg.model.type}")
     return model

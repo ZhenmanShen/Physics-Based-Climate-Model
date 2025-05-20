@@ -1,0 +1,4 @@
+# cnn_Lstm.yaml
+type: cnn_lstm
+hidden_dim: 128
+lstm_layers: 2
