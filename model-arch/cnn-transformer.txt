@@ -1,0 +1,13 @@
+Input: (B, 5, 48, 72)
+↓
+CNN Encoder → (B, embed_dim, 12, 18)
+↓
+Flatten to sequence → (B, 216, embed_dim)
+↓
+Transformer Encoder
+↓
+Reshape → (B, embed_dim, 12, 18)
+↓
+CNN Decoder (like UNet or small upsampler)
+↓
+Output: (B, 2, 48, 72)

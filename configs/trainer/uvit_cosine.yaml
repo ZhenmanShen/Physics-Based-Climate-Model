@@ -17,6 +17,12 @@ callbacks:
     dirpath: "${hydra:runtime.output_dir}/checkpoints"   # Where to save the model
     filename: "epoch={epoch:02d}-step={step}"
 
+  - _target_: lightning.pytorch.callbacks.EarlyStopping
+    monitor: "val/loss"
+    mode: "min"
+    patience: 10          # ← epochs
+    min_delta: 1.0e-4
+    verbose: true
     
   - _target_: lightning.pytorch.callbacks.LearningRateMonitor
     logging_interval: "epoch"

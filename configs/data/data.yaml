@@ -1,0 +1,38 @@
+# @package _global_.data
+
+path: data/processed.zarr
+
+input_vars: 
+  - "CO2"
+  - "SO2"
+  - "CH4"
+  - "BC"
+  - "rsdt"
+
+output_vars:
+  - "tas"
+  - "pr"
+target_member_id: 0
+
+
+train_ssps: 
+  - "ssp126"
+  - "ssp370"
+  - "ssp585"
+
+test_ssp: "ssp245"
+test_months: 360
+
+batch_size: 64 # Nvidia GPU has headroom, CHANGE to 32 if not using Nvidia GPU
+num_workers: 4
+
+augmentations:
+  train:
+    random_flip: true
+    random_rotate: true
+    jitter: [0.01, 0.01, 0.02, 0.01, 0.00]
+
+
+# shuffle_train: true
+# pin_memory: true
+# drop_last: true

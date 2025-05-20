@@ -1,0 +1,7 @@
+# @package _global_.model
+type: fno_small
+in_channels: 5
+out_channels: 2
+width: 64
+depth: 4
+modes: 20

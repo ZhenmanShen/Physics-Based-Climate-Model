@@ -1,0 +1,9 @@
+# @package _global_.model
+
+type: unet_attention_transformer
+base_channels: 64          # or 32 for lighter model
+depth: 4
+vit_dim: 512
+vit_layers: 4
+vit_heads: 8
+patch_size: 1

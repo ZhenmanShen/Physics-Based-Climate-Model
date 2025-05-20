@@ -1,0 +1,11 @@
+Input: sequence of past N months (e.g., shape B × T × 5 × 48 × 72)
+    ↓
+ConvLSTM → temporal memory
+    ↓
+Flatten to tokens
+    ↓
+Transformer encoder (global spatial attention)
+    ↓
+CNN decoder
+    ↓
+Output: (B × 2 × 48 × 72) — next-month tas & pr

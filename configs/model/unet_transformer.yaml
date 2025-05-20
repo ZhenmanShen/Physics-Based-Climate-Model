@@ -1,0 +1,19 @@
+# @package _global_.model
+
+type: unet_transformer
+
+# Transformer-specific
+# embed_dim: 1024
+# num_heads: 8
+# transformer_layers: 2
+
+in_channels: 5          # CO2, SO2, CH4, BC, rsdt
+out_channels: 2         # tas, pr
+base_channels: 64
+depth: 4
+
+# ViT bottleneck hyper-params
+vit_dim: 256
+vit_layers: 4
+vit_heads: 8
+patch_size: 2

@@ -34,9 +34,58 @@ from src.utils import (
     get_trainer_config,
 )
 
+### Helper Function for Data Augmentation ###
+
+class TrainTransforms:
+    """Top‐level callable so it can be pickled under Windows spawn."""
+    def __init__(self, jitter_cfg):
+        self.jitter_cfg = jitter_cfg
+
+    def __call__(self, x, y):
+        # 1) horizontal roll/flip
+        if torch.rand(1) < 0.5:
+            x = torch.flip(x, dims=[-1])
+            y = torch.flip(y, dims=[-1])
+        # 2) 180° rotation (latitude preserved)
+        if torch.rand(1) < 0.5:
+            x = torch.rot90(x, 2, dims=[-2, -1])
+            y = torch.rot90(y, 2, dims=[-2, -1])
+        # 3) jitter forcings
+        for i, pct in enumerate(self.jitter_cfg):
+            noise = 1.0 + (torch.rand(1)*2 - 1) * pct
+            x[i] = x[i] * noise
+        return x, y
+
+
+def random_flip_rotate(x, y):
+    # 50% chance horizontal (longitude) flip
+    if torch.rand(1) < 0.5:
+        x = torch.flip(x, dims=[-1])
+        y = torch.flip(y, dims=[-1])
+    # random 0°, 90°, 180°, or 270° rotation
+    k = torch.randint(0, 4, (1,)).item()
+    x = torch.rot90(x, k, dims=[-2, -1])
+    y = torch.rot90(y, k, dims=[-2, -1])
+    return x, y
+
+def jitter_forcings(x, y, jitter_cfg):
+    # assume first N channels of x correspond to forcings in the same order
+    for i, pct in enumerate(jitter_cfg):
+        # pct is the max relative jitter, e.g. 0.01 for ±1%
+        noise = 1.0 + (torch.rand(1) * 2 - 1) * pct
+        x[i] = x[i] * noise
+    return x, y
+
+# wrap‐around shift along x‐axis
+def random_longitude_roll(x, y, max_shift=5):
+    shift = torch.randint(-max_shift, max_shift+1, (1,)).item()
+    x = torch.roll(x, shifts=shift, dims=-1)
+    y = torch.roll(y, shifts=shift, dims=-1)
+    return x, y
 
 # Setup logging
 log = get_logger(__name__)
+
 
 
 # --- Data Handling ---
@@ -44,7 +93,7 @@ log = get_logger(__name__)
 
 # Dataset to precompute all tensors during initialization
 class ClimateDataset(Dataset):
-    def __init__(self, inputs_norm_dask, outputs_dask, output_is_normalized=True):
+    def __init__(self, inputs_norm_dask, outputs_dask, output_is_normalized=True, transforms=None):
         # Store dataset size
         self.size = inputs_norm_dask.shape[0]
 
@@ -60,6 +109,7 @@ class ClimateDataset(Dataset):
         # Convert to PyTorch tensors
         self.input_tensors = torch.from_numpy(inputs_np).float()
         self.output_tensors = torch.from_numpy(outputs_np).float()
+        self.transforms = transforms
 
         # Handle NaN values (should not occur)
         if torch.isnan(self.input_tensors).any() or torch.isnan(self.output_tensors).any():
@@ -69,7 +119,11 @@ class ClimateDataset(Dataset):
         return self.size
 
     def __getitem__(self, idx):
-        return self.input_tensors[idx], self.output_tensors[idx]
+        x = self.input_tensors[idx].clone()
+        y = self.output_tensors[idx].clone()
+        if self.transforms is not None:
+            x, y = self.transforms(x, y)
+        return x, y
 
 
 def _load_process_ssp_data(ds, ssp, input_variables, output_variables, member_id, spatial_template):
@@ -130,19 +184,23 @@ def _load_process_ssp_data(ds, ssp, input_variables, output_variables, member_id
 
 
 class ClimateEmulationDataModule(LightningDataModule):
-    def __init__(self,
-        path, input_vars, output_vars,
-        train_ssps, test_ssp, target_member_id,
-        test_months=360, batch_size=32,
-        eval_batch_size=None, num_workers=0,
-        seed=42,
-        augmentations=None,           # <— new
-        normalization=None,           # <— optional for later
+    def __init__(
+        self,
+        path: str,
+        input_vars: list,
+        output_vars: list,
+        train_ssps: list,
+        test_ssp: str,
+        target_member_id: int,
+        test_months: int = 360,
+        batch_size: int = 32,
+        eval_batch_size: int = None,
+        num_workers: int = 0,
+        seed: int = 42,
+        augmentations: dict | None = None,    # ← add this
     ):
-    
         super().__init__()
         self.save_hyperparameters()
-        # now self.hparams.augmentations is available
         self.hparams.path = to_absolute_path(path)
         self.normalizer = Normalizer()
 
@@ -242,7 +300,15 @@ class ClimateEmulationDataModule(LightningDataModule):
             test_output_raw_dask = sliced_test_output_raw_dask  # Keep unnormed for evaluation
 
         # Create datasets
-        self.train_dataset = ClimateDataset(train_input_norm_dask, train_output_norm_dask, output_is_normalized=True)
+        # build transforms from your config
+        jitter_cfg = self.hparams.augmentations["train"]["jitter"]
+        transforms = TrainTransforms(jitter_cfg)
+        self.train_dataset = ClimateDataset(
+            train_input_norm_dask,
+            train_output_norm_dask,
+            output_is_normalized=True,
+            transforms=transforms
+        )
         self.val_dataset = ClimateDataset(val_input_norm_dask, val_output_norm_dask, output_is_normalized=True)
         self.test_dataset = ClimateDataset(test_input_norm_dask, test_output_raw_dask, output_is_normalized=False)
 

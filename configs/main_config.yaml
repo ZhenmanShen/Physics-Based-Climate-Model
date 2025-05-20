@@ -1,10 +1,10 @@
 # @package _global_
 
 defaults:
-  - data: default
-  - model: vit # Must change 
-  - training: default
-  - trainer: default
+  - data: data
+  - model: unet_transformer # Must change 
+  - training: uvit_cosine
+  - trainer: uvit_cosine
   - _self_
 
 # Global configs
@@ -24,3 +24,4 @@ hydra:
     chdir: true
   run:
     dir: outputs/${now:%Y-%m-%d}/${now:%H-%M-%S}
+

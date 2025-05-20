@@ -16,6 +16,8 @@ from lightning.pytorch.loggers import WandbLogger
 from omegaconf import DictConfig, OmegaConf
 from torch.utils.data import DataLoader, Dataset
 
+# Load data argumentation 
+from augment import ClimateAugment
 
 try:
     import wandb  # Optional, for logging to Weights & Biases
@@ -44,7 +46,12 @@ log = get_logger(__name__)
 
 # Dataset to precompute all tensors during initialization
 class ClimateDataset(Dataset):
-    def __init__(self, inputs_norm_dask, outputs_dask, output_is_normalized=True):
+
+    # Updated __int__ for ClimateDataset so that it accept transform for data augmentation
+    def __init__(self, inputs_norm_dask, outputs_dask, output_is_normalized=True, transform=None):
+        # Update transform
+        self.transform = transform
+
         # Store dataset size
         self.size = inputs_norm_dask.shape[0]
 
@@ -68,8 +75,13 @@ class ClimateDataset(Dataset):
     def __len__(self):
         return self.size
 
+    # Updated
     def __getitem__(self, idx):
-        return self.input_tensors[idx], self.output_tensors[idx]
+        x, y = self.input_tensors[idx], self.output_tensors[idx]
+        if self.transform:
+            x = self.transform(x)
+        return x, y
+        # return self.input_tensors[idx], self.output_tensors[idx]
 
 
 def _load_process_ssp_data(ds, ssp, input_variables, output_variables, member_id, spatial_template):
@@ -130,19 +142,22 @@ def _load_process_ssp_data(ds, ssp, input_variables, output_variables, member_id
 
 
 class ClimateEmulationDataModule(LightningDataModule):
-    def __init__(self,
-        path, input_vars, output_vars,
-        train_ssps, test_ssp, target_member_id,
-        test_months=360, batch_size=32,
-        eval_batch_size=None, num_workers=0,
-        seed=42,
-        augmentations=None,           # <— new
-        normalization=None,           # <— optional for later
+    def __init__(
+        self,
+        path: str,
+        input_vars: list,
+        output_vars: list,
+        train_ssps: list,
+        test_ssp: str,
+        target_member_id: int,
+        test_months: int = 360,
+        batch_size: int = 32,
+        eval_batch_size: int = None,
+        num_workers: int = 0,
+        seed: int = 42,
     ):
-    
         super().__init__()
         self.save_hyperparameters()
-        # now self.hparams.augmentations is available
         self.hparams.path = to_absolute_path(path)
         self.normalizer = Normalizer()
 
@@ -241,11 +256,13 @@ class ClimateEmulationDataModule(LightningDataModule):
             test_input_norm_dask = self.normalizer.normalize(sliced_test_input_dask, data_type="input")
             test_output_raw_dask = sliced_test_output_raw_dask  # Keep unnormed for evaluation
 
+        # Update: Implemented transformation
+        train_transform = ClimateAugment(flip_prob=0.5, noise_std=0.01, scale_range=(0.98, 1.02))
+
         # Create datasets
-        self.train_dataset = ClimateDataset(train_input_norm_dask, train_output_norm_dask, output_is_normalized=True)
+        self.train_dataset = ClimateDataset(train_input_norm_dask, train_output_norm_dask, output_is_normalized=True, transform=train_transform) # Applied transform to the training set
         self.val_dataset = ClimateDataset(val_input_norm_dask, val_output_norm_dask, output_is_normalized=True)
         self.test_dataset = ClimateDataset(test_input_norm_dask, test_output_raw_dask, output_is_normalized=False)
-
 
         # Log dataset sizes in a single message
         log.info(

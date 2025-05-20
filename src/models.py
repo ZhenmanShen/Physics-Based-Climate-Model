@@ -2,7 +2,12 @@ import torch.nn as nn
 from .unet import UNet
 from omegaconf import DictConfig
 from .vit_climate import ViTClimate
-
+from .cnn_transformer import CNNTransformer
+from  .cnn_transformer_attention import CNNTransformerAttention
+from .unet_transformer import UNetTransformer
+from .swin_unet import SwinUNet
+from .fno2d import FNO2D
+from .unet_attention_transformer import UNetAttentionTransformer
 
 
 def get_model(cfg: DictConfig):
@@ -22,6 +27,61 @@ def get_model(cfg: DictConfig):
         return ViTClimate(
             in_channels=len(cfg.data.input_vars),
             out_channels=len(cfg.data.output_vars)
+        )
+    elif cfg.model.type == "cnn_transformer":
+        return CNNTransformer(
+            in_channels=len(cfg.data.input_vars),
+            out_channels=len(cfg.data.output_vars),
+            embed_dim=cfg.model.embed_dim,
+            depth=cfg.model.depth,
+            n_heads=cfg.model.n_heads,
+            mlp_dim=cfg.model.mlp_dim,
+            dropout=cfg.model.dropout
+        )
+    elif cfg.model.type == "cnn_transformer_attention":
+        return CNNTransformerAttention(
+            in_channels=len(cfg.data.input_vars),
+            out_channels=len(cfg.data.output_vars),
+            embed_dim=cfg.model.embed_dim,
+            depth=cfg.model.depth,
+            n_heads=cfg.model.n_heads,
+            mlp_dim=cfg.model.mlp_dim,
+            dropout=cfg.model.dropout
+        )
+    elif cfg.model.type == "unet_transformer":
+        return UNetTransformer(
+            in_ch=len(cfg.data.input_vars),
+            out_ch=len(cfg.data.output_vars),
+            base_ch=cfg.model.base_channels,
+            depth=cfg.model.depth,
+            vit_dim=cfg.model.vit_dim,
+            vit_layers=cfg.model.vit_layers,
+            vit_heads=cfg.model.vit_heads,
+            patch_size=cfg.model.patch_size,
+        )
+    elif cfg.model.type == "swin_unet":
+        return SwinUNet(
+            in_ch=len(cfg.data.input_vars),
+            out_ch=len(cfg.data.output_vars),
+        )
+    elif cfg.model.type == "fno_small":
+        return FNO2D(
+            in_ch=len(cfg.data.input_vars),
+            out_ch=len(cfg.data.output_vars),
+            width=cfg.model.width,
+            depth=cfg.model.depth,
+            modes=(cfg.model.modes, cfg.model.modes)
+        )
+    elif cfg.model.type == "unet_attention_transformer":
+        return UNetAttentionTransformer(
+            in_ch=len(cfg.data.input_vars),
+            out_ch=len(cfg.data.output_vars),
+            base_ch=cfg.model.base_channels,
+            depth=cfg.model.depth,
+            vit_dim=cfg.model.vit_dim,
+            vit_layers=cfg.model.vit_layers,
+            vit_heads=cfg.model.vit_heads,
+            patch_size=cfg.model.patch_size,
         )
     else:
         raise ValueError(f"Unknown model type: {cfg.model.type}")

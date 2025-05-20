@@ -1,0 +1,9 @@
+# @package _global_.model
+
+type: cnn_transformer
+
+embed_dim: 128
+depth: 4
+n_heads: 4
+mlp_dim: 256
+dropout: 0.1
