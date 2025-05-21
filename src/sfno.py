@@ -24,7 +24,15 @@ class SFNOLayer(nn.Module):
         self.isht = th.InverseRealSHT(nlat, nlon, lmax=lmax)
 
         # Learned radial spectral filter: [C_in, C_out, L_max+1]
-        self.filter = nn.Parameter(torch.randn(ch, ch, lmax + 1, dtype=torch.cfloat))
+        self.filter = nn.Parameter(torch.zeros(ch, ch, lmax+1, dtype=torch.cfloat))
+        with torch.no_grad():
+            # make the DC (ℓ=0) pass through unchanged
+            eye = torch.eye(ch, dtype=torch.cfloat)
+            self.filter[:, :, 0] = eye
+
+        # optional small random perturbation on higher modes
+        nn.init.normal_(self.filter[:, :, 1:].real, mean=0.0, std=1e-2)
+        nn.init.normal_(self.filter[:, :, 1:].imag, mean=0.0, std=1e-2)
 
         self.mlp = nn.Sequential(
             nn.Linear(ch, d_model),
