@@ -1,50 +1,17 @@
 import torch.nn as nn
-from .unet import UNet
 from omegaconf import DictConfig
 from .vit_climate import ViTClimate
 from .cnn_transformer import CNNTransformer
 from  .cnn_transformer_attention import CNNTransformerAttention
 from .unet_transformer import UNetTransformer
-from .swin_unet import SwinUNet
-from .fno2d import FNO2D
-from .unet_attention_transformer import UNetAttentionTransformer
-from .cnn_unet_transformer import CNN_UNet_Transformer
-from .sfno import SFNO
-from .psfno import ProbSFNO
-from .fno_transformer import FNOTransformer
+
 
 def get_model(cfg: DictConfig):
     # Create model based on configuration
     model_kwargs = {k: v for k, v in cfg.model.items() if k != "type"}
     model_kwargs["n_input_channels"] = len(cfg.data.input_vars)
     model_kwargs["n_output_channels"] = len(cfg.data.output_vars)
-    if cfg.model.type == "simple_cnn":
-        model = SimpleCNN(**model_kwargs)
-    elif cfg.model.type == "unet": # Added unet here
-        return UNet(
-            in_channels=len(cfg.data.input_vars),
-            out_channels=len(cfg.data.output_vars),
-            base_channels=cfg.model.base_channels,
-        )
-    elif cfg.model.type == "fno_transformer":
-        return FNOTransformer(
-            in_channels=len(cfg.data.input_vars),
-            out_channels=len(cfg.data.output_vars),
-            modes=cfg.model.modes,
-            fno_width=cfg.model.fno_width,
-            fno_depth=cfg.model.fno_depth,
-            embed_dim=cfg.model.embed_dim,
-            trans_depth=cfg.model.trans_depth,
-            n_heads=cfg.model.n_heads,
-            mlp_dim=cfg.model.mlp_dim,
-            dropout=cfg.model.dropout,
-        )
-    elif cfg.model.type == "vit":
-        return ViTClimate(
-            in_channels=len(cfg.data.input_vars),
-            out_channels=len(cfg.data.output_vars)
-        )
-    elif cfg.model.type == "cnn_transformer":
+    if cfg.model.type == "cnn_transformer":
         return CNNTransformer(
             in_channels=len(cfg.data.input_vars),
             out_channels=len(cfg.data.output_vars),
@@ -63,78 +30,6 @@ def get_model(cfg: DictConfig):
             n_heads=cfg.model.n_heads,
             mlp_dim=cfg.model.mlp_dim,
             dropout=cfg.model.dropout
-        )
-    elif cfg.model.type == "unet_transformer":
-        return UNetTransformer(
-            in_ch=len(cfg.data.input_vars),
-            out_ch=len(cfg.data.output_vars),
-            base_ch=cfg.model.base_channels,
-            depth=cfg.model.depth,
-            vit_dim=cfg.model.vit_dim,
-            vit_layers=cfg.model.vit_layers,
-            vit_heads=cfg.model.vit_heads,
-            patch_size=cfg.model.patch_size,
-        )
-    elif cfg.model.type == "swin_unet":
-        return SwinUNet(
-            in_ch=len(cfg.data.input_vars),
-            out_ch=len(cfg.data.output_vars),
-        )
-    elif cfg.model.type == "fno_small":
-        return FNO2D(
-            in_ch=len(cfg.data.input_vars),
-            out_ch=len(cfg.data.output_vars),
-            width=cfg.model.width,
-            depth=cfg.model.depth,
-            modes=(cfg.model.modes, cfg.model.modes)
-        )
-    elif cfg.model.type == "unet_attention_transformer":
-        return UNetAttentionTransformer(
-            in_ch=len(cfg.data.input_vars),
-            out_ch=len(cfg.data.output_vars),
-            base_ch=cfg.model.base_channels,
-            depth=cfg.model.depth,
-            vit_dim=cfg.model.vit_dim,
-            vit_layers=cfg.model.vit_layers,
-            vit_heads=cfg.model.vit_heads,
-            patch_size=cfg.model.patch_size,
-        )
-    elif cfg.model.type == "cnn_unet_transformer":
-        return CNN_UNet_Transformer(
-            in_ch=len(cfg.data.input_vars),
-            out_ch=len(cfg.data.output_vars),
-            stem_ch=cfg.model.stem_channels,
-            base_ch=cfg.model.base_channels,
-            depth=cfg.model.depth,
-            vit_dim=cfg.model.vit_dim,
-            vit_layers=cfg.model.vit_layers,
-            vit_heads=cfg.model.vit_heads,
-            patch_size=cfg.model.patch_size,
-        )
-    elif cfg.model.type == "sfno":
-        return SFNO(
-            nlat=cfg.model.nlat,
-            nlon=cfg.model.nlon,
-            in_ch=len(cfg.data.input_vars),
-            out_ch=len(cfg.data.output_vars),
-            embed_dim=cfg.model.embed_dim,
-            lmax=cfg.model.lmax,
-            layers=cfg.model.layers,
-            depth=cfg.model.depth,
-            n_heads=cfg.model.n_heads,
-            mlp_dim=cfg.model.mlp_dim,
-            dropout=cfg.model.dropout,
-        )
-    elif cfg.model.type == "psfno":
-        from src.psfno import ProbSFNO  # if you need the bare model
-        return ProbSFNO(
-            nlat=cfg.model.nlat,
-            nlon=cfg.model.nlon,
-            in_ch=len(cfg.data.input_vars),
-            out_ch=len(cfg.data.output_vars),
-            embed_dim=cfg.model.embed_dim,
-            layers=cfg.model.layers,
-            lmax=cfg.model.lmax,
         )
     else:
         raise ValueError(f"Unknown model type: {cfg.model.type}")

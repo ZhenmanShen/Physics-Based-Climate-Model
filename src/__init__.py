@@ -1,5 +1,4 @@
 from .models import SimpleCNN
-from .unet import UNet
 
 def get_model(cfg):
     if cfg.model.type == "simple_cnn":

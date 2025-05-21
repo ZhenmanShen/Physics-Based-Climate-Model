@@ -1,9 +1,0 @@
-# @package _global_.model
-
-type: cnn_transformer_attention
-base_channels: 64          # or 32 for lighter model
-depth: 4
-vit_dim: 512
-vit_layers: 4
-vit_heads: 8
-patch_size: 1

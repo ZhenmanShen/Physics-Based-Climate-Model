@@ -1,8 +1,0 @@
-# @package _global_.model
-
-type: psfno        # tells get_model() what to build
-nlat: 48
-nlon: 72
-embed_dim: 256
-layers: 8
-lmax: 23
