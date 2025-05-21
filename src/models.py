@@ -8,6 +8,7 @@ from .unet_transformer import UNetTransformer
 from .swin_unet import SwinUNet
 from .fno2d import FNO2D
 from .unet_attention_transformer import UNetAttentionTransformer
+from .cnn_unet_transformer import CNN_UNet_Transformer
 
 
 def get_model(cfg: DictConfig):
@@ -76,6 +77,18 @@ def get_model(cfg: DictConfig):
         return UNetAttentionTransformer(
             in_ch=len(cfg.data.input_vars),
             out_ch=len(cfg.data.output_vars),
+            base_ch=cfg.model.base_channels,
+            depth=cfg.model.depth,
+            vit_dim=cfg.model.vit_dim,
+            vit_layers=cfg.model.vit_layers,
+            vit_heads=cfg.model.vit_heads,
+            patch_size=cfg.model.patch_size,
+        )
+    elif cfg.model.type == "cnn_unet_transformer":
+        return CNN_UNet_Transformer(
+            in_ch=len(cfg.data.input_vars),
+            out_ch=len(cfg.data.output_vars),
+            stem_ch=cfg.model.stem_channels,
             base_ch=cfg.model.base_channels,
             depth=cfg.model.depth,
             vit_dim=cfg.model.vit_dim,

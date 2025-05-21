@@ -1,8 +1,8 @@
 # @package _global_
 
 defaults:
-  - data: data
-  - model: unet_transformer # Must change 
+  - data: default
+  - model: cnn_transformer_attention # Must change 
   - training: uvit_cosine
   - trainer: uvit_cosine
   - _self_

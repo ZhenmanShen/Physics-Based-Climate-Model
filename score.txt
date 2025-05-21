@@ -1,0 +1,8 @@
+fno_small - main.py - 67 epochs - local score: 0.159 
+fno_small - augment.py - epochs 76 - local score: 0.163
+unet_transformer - main.py - 60 epochs - local score: 0.161
+unet_transformer - augment.py - 65 epochs - local score 0.165
+cnn_transformer - main.py - 80 epochs - local score 0.160
+cnn_transformer - augment.py - 87 epochs - local score: 0.168
+cnn_unet_transformer - main.py - 45 epochs - local score: 0.160
+cnn_unet_transformer - main.py - 57 epochs - local score: 0.161

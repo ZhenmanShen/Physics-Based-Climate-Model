@@ -1,4 +1,5 @@
 import torch, torch.nn as nn, torch.fft
+import torch.nn.functional as F
 
 class SpectralConv2d(nn.Module):
     def __init__(self, in_c, out_c, modes=(20,20)):
@@ -11,15 +12,31 @@ class SpectralConv2d(nn.Module):
         w = torch.view_as_complex(weights)
         return torch.einsum("bixy,ioxy->boxy", input, w)
     def forward(self, x):                              # x B C H W
-        B,C,H,W = x.shape
-        x_ft = torch.fft.rfftn(x, dim=(2,3))
-        out_ft = torch.zeros(B, self.weight.shape[1], H,
-                             W//2+1, dtype=torch.cfloat, device=x.device)
-        kx,ky = self.modes
-        out_ft[:, :, :kx, :ky] = self.compl_mul2d(
-            x_ft[:, :, :kx, :ky], self.weight)
-        x = torch.fft.irfftn(out_ft, s=(H,W), dim=(2,3))
-        return x
+        B, C, H, W = x.shape
+        # 1) Always do the spectral multiply in FP32
+        x_fp32 = x.float()
+        x_ft   = torch.fft.rfftn(x_fp32, dim=(2,3))
+
+        # 2) Prepare an FP32-complex output buffer
+        out_ft = torch.zeros(
+            B, self.weight.shape[1], H, W//2 + 1,
+            dtype=torch.cfloat, device=x.device
+        )
+
+        # 3) Complex multiply: weight is float→complex
+        kx, ky = self.modes
+        w_complex = torch.view_as_complex(self.weight)  # ComplexFloat
+        out_ft[:, :, :kx, :ky] = torch.einsum(
+            "bixy,ioxy->boxy",
+            x_ft[:, :, :kx, :ky],
+            w_complex
+        )
+
+        # 4) Inverse FFT in FP32
+        x_ifft = torch.fft.irfftn(out_ft, s=(H, W), dim=(2,3))
+
+        # 5) Cast back to the input dtype (e.g. fp16) before returning
+        return x_ifft.to(x.dtype)
 
 class FNOBlock(nn.Module):
     def __init__(self, width, modes=(20,20)):
@@ -42,5 +59,5 @@ class FNO2D(nn.Module):
     def forward(self, x):
         x = self.fc0(x)
         x = self.blocks(x)
-        x = self.fc1(x).gelu()
+        x = F.gelu(self.fc1(x))
         return self.fc2(x)
