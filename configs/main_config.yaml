@@ -3,8 +3,8 @@
 defaults:
   - data: default
   - model: cnn_transformer_attention # Must change 
-  - training: uvit_cosine
-  - trainer: uvit_cosine
+  - training: default
+  - trainer: default
   - _self_
 
 # Global configs
