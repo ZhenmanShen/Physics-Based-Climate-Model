@@ -1,63 +1,58 @@
-import torch, torch.nn as nn, torch.fft
-import torch.nn.functional as F
+import torch
+import torch.nn as nn
+import torch.fft
 
 class SpectralConv2d(nn.Module):
-    def __init__(self, in_c, out_c, modes=(20,20)):
+    """2-D Fourier layer with complex weight modulation."""
+    def __init__(self, in_ch, out_ch, modes_lat, modes_lon):
         super().__init__()
-        self.modes = modes
-        scale = 1/(in_c*out_c)
-        self.weight = nn.Parameter(scale * torch.randn(in_c, out_c, *modes, 2))
-    def compl_mul2d(self, input, weights):
-        # (B,in,H,W) , (in,out,kx,ky,2)
-        w = torch.view_as_complex(weights)
-        return torch.einsum("bixy,ioxy->boxy", input, w)
-    def forward(self, x):                              # x B C H W
+        self.in_ch, self.out_ch = in_ch, out_ch
+        self.modes_lat, self.modes_lon = modes_lat, modes_lon
+        # complex weights for the retained modes
+        self.weight = nn.Parameter(
+            torch.randn(in_ch, out_ch, modes_lat, modes_lon, dtype=torch.cfloat)
+        )
+
+    def compl_mul(self, a, b):
+        # (a+ib)(c+id) = (ac−bd) + i(ad+bc)
+        return torch.stack([
+            a.real * b.real - a.imag * b.imag,
+            a.real * b.imag + a.imag * b.real
+        ], dim=-1).sum(2)  # sum over in_ch
+
+    def forward(self, x):                                # x: [B,C,H,W]  (float32)
         B, C, H, W = x.shape
-        # 1) Always do the spectral multiply in FP32
-        x_fp32 = x.float()
-        x_ft   = torch.fft.rfftn(x_fp32, dim=(2,3))
-
-        # 2) Prepare an FP32-complex output buffer
-        out_ft = torch.zeros(
-            B, self.weight.shape[1], H, W//2 + 1,
-            dtype=torch.cfloat, device=x.device
+        x_ft = torch.fft.rfft2(x, norm="ortho")          # [B,C,H, W/2+1]
+        # allocate output Fourier tensor
+        out_ft = torch.zeros(B, self.out_ch, H, W//2 + 1, dtype=torch.cfloat, device=x.device)
+        lat_slice = slice(0, self.modes_lat)
+        lon_slice = slice(0, self.modes_lon)
+        out_ft[:, :, lat_slice, lon_slice] = self.compl_mul(
+            x_ft[:, :, lat_slice, lon_slice], self.weight
         )
-
-        # 3) Complex multiply: weight is float→complex
-        kx, ky = self.modes
-        w_complex = torch.view_as_complex(self.weight)  # ComplexFloat
-        out_ft[:, :, :kx, :ky] = torch.einsum(
-            "bixy,ioxy->boxy",
-            x_ft[:, :, :kx, :ky],
-            w_complex
-        )
-
-        # 4) Inverse FFT in FP32
-        x_ifft = torch.fft.irfftn(out_ft, s=(H, W), dim=(2,3))
-
-        # 5) Cast back to the input dtype (e.g. fp16) before returning
-        return x_ifft.to(x.dtype)
+        x_out = torch.fft.irfft2(out_ft, s=(H, W), norm="ortho")
+        return x_out
 
 class FNOBlock(nn.Module):
-    def __init__(self, width, modes=(20,20)):
+    def __init__(self, ch, modes_lat, modes_lon):
         super().__init__()
-        self.spectral = SpectralConv2d(width, width, modes)
-        self.w = nn.Conv2d(width, width, 1)
-        self.act = nn.GELU()
+        self.spectral = SpectralConv2d(ch, ch, modes_lat, modes_lon)
+        self.linear   = nn.Conv2d(ch, ch, 1)
+        self.act      = nn.GELU()
+
     def forward(self, x):
-        x = self.spectral(x) + self.w(x)
-        return self.act(x)
+        return self.act(self.spectral(x) + self.linear(x))
 
 class FNO2D(nn.Module):
-    def __init__(self, in_ch, out_ch, width=64, depth=4, modes=(20,20)):
+    """Four-layer FNO for (48×72) climate grid."""
+    def __init__(self, in_ch=5, out_ch=2, ch=64, modes_lat=16, modes_lon=16, layers=4):
         super().__init__()
-        self.fc0 = nn.Conv2d(in_ch, width, 1)
-        self.blocks = nn.Sequential(
-            *[FNOBlock(width, modes) for _ in range(depth)])
-        self.fc1 = nn.Conv2d(width, 128, 1)
-        self.fc2 = nn.Conv2d(128, out_ch, 1)
-    def forward(self, x):
-        x = self.fc0(x)
-        x = self.blocks(x)
-        x = F.gelu(self.fc1(x))
-        return self.fc2(x)
+        self.proj_in  = nn.Conv2d(in_ch, ch, 1)
+        self.blocks   = nn.ModuleList([FNOBlock(ch, modes_lat, modes_lon) for _ in range(layers)])
+        self.proj_out = nn.Conv2d(ch, out_ch, 1)
+
+    def forward(self, x):                    # x: [B,in_ch,48,72]
+        x = self.proj_in(x)
+        for blk in self.blocks:
+            x = blk(x)
+        return self.proj_out(x)

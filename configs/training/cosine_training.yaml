@@ -1,0 +1,18 @@
+# @package _global_.training
+
+# Base learning rate
+lr: 4e-4
+
+# Optimizer definition (Hydra will instantiate this)
+optim:
+  _target_: torch.optim.AdamW
+  lr: ${..lr}
+  weight_decay: 5.0e-3
+
+# Cosine Annealing with warm restarts scheduler
+scheduler:
+  _target_: torch.optim.lr_scheduler.CosineAnnealingWarmRestarts
+  _partial_: true            # allows passing the optimizer in the Lightning module
+  T_0: 100                   # first restart after 100 epochs
+  T_mult: 1                  # no further restarts
+  eta_min: 2.0e-5            # minimum LR (5 % of initial)

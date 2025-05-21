@@ -1,0 +1,12 @@
+# @package _global_.model
+
+type: sfno
+nlat: 48
+nlon: 72
+embed_dim: 256
+layers: 8          # SFNO blocks
+lmax: 23
+depth: 4           # transformer layers
+n_heads: 4
+mlp_dim: 512
+dropout: 0.1    

@@ -2,9 +2,9 @@
 
 defaults:
   - data: default
-  - model: cnn_transformer_attention # Must change 
-  - training: default
-  - trainer: default
+  - model: sfno # Must change 
+  - training: cosine_training
+  - trainer: cosine_trainer
   - _self_
 
 # Global configs

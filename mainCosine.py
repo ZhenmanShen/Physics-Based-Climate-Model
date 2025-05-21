@@ -10,12 +10,11 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import xarray as xr
-from hydra.utils import to_absolute_path
+from hydra.utils import to_absolute_path, instantiate  # ← added instantiate
 from lightning.pytorch import LightningDataModule
 from lightning.pytorch.loggers import WandbLogger
 from omegaconf import DictConfig, OmegaConf
 from torch.utils.data import DataLoader, Dataset
-
 
 try:
     import wandb  # Optional, for logging to Weights & Biases
@@ -34,34 +33,30 @@ from src.utils import (
     get_trainer_config,
 )
 
-
-# Setup logging
+# -----------------------------------------------------------------------------
+# Logging
+# -----------------------------------------------------------------------------
 log = get_logger(__name__)
 
+# -----------------------------------------------------------------------------
+# Data Handling
+# -----------------------------------------------------------------------------
 
-# --- Data Handling ---
-
-
-# Dataset to precompute all tensors during initialization
 class ClimateDataset(Dataset):
-    def __init__(self, inputs_norm_dask, outputs_dask, output_is_normalized=True):
-        # Store dataset size
-        self.size = inputs_norm_dask.shape[0]
+    """Dataset that pre‑computes all tensors during initialisation for speed."""
 
-        # Log once with basic information
+    def __init__(self, inputs_norm_dask: da.Array, outputs_dask: da.Array, *, output_is_normalized: bool = True):
+        self.size = inputs_norm_dask.shape[0]
         log.info(
-            f"Creating dataset: {self.size} samples, input shape: {inputs_norm_dask.shape}, normalized output: {output_is_normalized}"
+            f"Creating dataset: {self.size} samples – input {inputs_norm_dask.shape}, normalised output: {output_is_normalized}"
         )
 
-        # Precompute all tensors in one go
         inputs_np = inputs_norm_dask.compute()
         outputs_np = outputs_dask.compute()
-
-        # Convert to PyTorch tensors
         self.input_tensors = torch.from_numpy(inputs_np).float()
         self.output_tensors = torch.from_numpy(outputs_np).float()
 
-        # Handle NaN values (should not occur)
+        # Guard against NaNs (should never happen!)
         if torch.isnan(self.input_tensors).any() or torch.isnan(self.output_tensors).any():
             raise ValueError("NaN values detected in dataset tensors")
 
@@ -72,75 +67,60 @@ class ClimateDataset(Dataset):
         return self.input_tensors[idx], self.output_tensors[idx]
 
 
-def _load_process_ssp_data(ds, ssp, input_variables, output_variables, member_id, spatial_template):
-    """
-    Loads and processes input and output variables for a single SSP using Dask.
+def _load_process_ssp_data(
+    ds: xr.Dataset,
+    ssp: str,
+    input_variables: list[str],
+    output_variables: list[str],
+    member_id: int,
+    spatial_template: xr.DataArray,
+):
+    """Load *one* SSP scenario into stacked dask arrays (time, channels, y, x)."""
 
-    Args:
-        ds (xr.Dataset): The opened xarray dataset.
-        ssp (str): The SSP identifier (e.g., 'ssp126').
-        input_variables (list): List of input variable names.
-        output_variables (list): List of output variable names.
-        member_id (int): The member ID to select.
-        spatial_template (xr.DataArray): A template DataArray with ('y', 'x') dimensions
-                                          for broadcasting global variables.
-
-    Returns:
-        tuple: (input_dask_array, output_dask_array)
-               - input_dask_array: Stacked dask array of inputs (time, channels, y, x).
-               - output_dask_array: Stacked dask array of outputs (time, channels, y, x).
-    """
-    ssp_input_dasks = []
+    ssp_input_dasks: list[da.Array] = []
     for var in input_variables:
         da_var = ds[var].sel(ssp=ssp)
-        # Rename spatial dims if needed
         if "latitude" in da_var.dims:
             da_var = da_var.rename({"latitude": "y", "longitude": "x"})
-        # Select member if applicable
         if "member_id" in da_var.dims:
             da_var = da_var.sel(member_id=member_id)
 
-        # Process based on dimensions
-        if set(da_var.dims) == {"time"}:  # Global variable, broadcast to spatial dims:
-            # Broadcast like template, then transpose to ensure ('time', 'y', 'x')
-            da_var_expanded = da_var.broadcast_like(spatial_template).transpose("time", "y", "x")
-            ssp_input_dasks.append(da_var_expanded.data)
-        elif set(da_var.dims) == {"time", "y", "x"}:  # Spatially resolved
+        if set(da_var.dims) == {"time"}:  # global – broadcast over (y,x)
+            da_b = da_var.broadcast_like(spatial_template).transpose("time", "y", "x")
+            ssp_input_dasks.append(da_b.data)
+        elif set(da_var.dims) == {"time", "y", "x"}:  # already spatial
             ssp_input_dasks.append(da_var.data)
         else:
-            raise ValueError(f"Unexpected dimensions for variable {var} in SSP {ssp}: {da_var.dims}")
+            raise ValueError(f"Unexpected dims for {var} in {ssp}: {da_var.dims}")
 
-    # Stack inputs along channel dimension -> dask array (time, channels, y, x)
-    stacked_input_dask = da.stack(ssp_input_dasks, axis=1)
+    input_dask = da.stack(ssp_input_dasks, axis=1)
 
-    # Prepare output dask arrays for each output variable
-    output_dasks = []
+    output_dasks: list[da.Array] = []
     for var in output_variables:
-        da_output = ds[var].sel(ssp=ssp, member_id=member_id)
-        # Ensure output also uses y, x if necessary
-        if "latitude" in da_output.dims:
-            da_output = da_output.rename({"latitude": "y", "longitude": "x"})
+        da_out = ds[var].sel(ssp=ssp, member_id=member_id)
+        if "latitude" in da_out.dims:
+            da_out = da_out.rename({"latitude": "y", "longitude": "x"})
+        output_dasks.append(da_out.data)
 
-        # Add time, y, x dimensions as a dask array
-        output_dasks.append(da_output.data)
-
-    # Stack outputs along channel dimension -> dask array (time, channels, y, x)
-    stacked_output_dask = da.stack(output_dasks, axis=1)
-    return stacked_input_dask, stacked_output_dask
+    output_dask = da.stack(output_dasks, axis=1)
+    return input_dask, output_dask
 
 
 class ClimateEmulationDataModule(LightningDataModule):
+    """LightningDataModule that prepares train/val/test ClimateDataset objects."""
+
     def __init__(
         self,
         path: str,
-        input_vars: list,
-        output_vars: list,
-        train_ssps: list,
+        input_vars: list[str],
+        output_vars: list[str],
+        train_ssps: list[str],
         test_ssp: str,
         target_member_id: int,
+        *,
         test_months: int = 360,
         batch_size: int = 32,
-        eval_batch_size: int = None,
+        eval_batch_size: int | None = None,
         num_workers: int = 0,
         seed: int = 42,
     ):
@@ -148,14 +128,14 @@ class ClimateEmulationDataModule(LightningDataModule):
         self.save_hyperparameters()
         self.hparams.path = to_absolute_path(path)
         self.normalizer = Normalizer()
-
-        # Set evaluation batch size to training batch size if not specified
         if eval_batch_size is None:
             self.hparams.eval_batch_size = batch_size
+        self.train_dataset = self.val_dataset = self.test_dataset = None
+        self.lat_coords = self.lon_coords = self._lat_weights_da = None
 
-        # Placeholders
-        self.train_dataset, self.val_dataset, self.test_dataset = None, None, None
-        self.lat_coords, self.lon_coords, self._lat_weights_da = None, None, None
+    # ---------------------------------------------------------------------
+    # prepare_data & setup – identical to baseline (unchanged)  ▶▶▶
+    # ---------------------------------------------------------------------
 
     def prepare_data(self):
         if not os.path.exists(self.hparams.path):
@@ -163,25 +143,19 @@ class ClimateEmulationDataModule(LightningDataModule):
         log.info(f"Data found at: {self.hparams.path}")
 
     def setup(self, stage: str | None = None):
+        """Build the train/val/test datasets – heavy lifting happens here."""
+
         log.info(f"Setting up data module for stage: {stage} from {self.hparams.path}")
-
-        # Use context manager for opening dataset
         with xr.open_zarr(self.hparams.path, consolidated=True, chunks={"time": 24}) as ds:
-            # Create a spatial template ONCE using a variable guaranteed to have y, x
-            # Extract the template DataArray before renaming for coordinate access
-            spatial_template_da = ds["rsdt"].isel(time=0, ssp=0, drop=True)  # drop time/ssp dims
+            spatial_template_da = ds["rsdt"].isel(time=0, ssp=0, drop=True)
 
-            # --- Prepare Training and Validation Data ---
-            train_inputs_dask_list, train_outputs_dask_list = [], []
-            val_input_dask, val_output_dask = None, None
-            val_ssp = "ssp370"
-            val_months = 120
+            # ---- Train & Val ----
+            train_in_dasks, train_out_dasks = [], []
+            val_in_dask = val_out_dask = None
+            val_ssp, val_months = "ssp370", 120
 
-            # Process all SSPs
-            log.info(f"Loading data from SSPs: {self.hparams.train_ssps}")
             for ssp in self.hparams.train_ssps:
-                # Load the data for this SSP
-                ssp_input_dask, ssp_output_dask = _load_process_ssp_data(
+                ssp_in, ssp_out = _load_process_ssp_data(
                     ds,
                     ssp,
                     self.hparams.input_vars,
@@ -191,23 +165,18 @@ class ClimateEmulationDataModule(LightningDataModule):
                 )
 
                 if ssp == val_ssp:
-                    # Special handling for SSP 370: split into training and validation
-                    # Last 120 months go to validation
-                    val_input_dask = ssp_input_dask[-val_months:]
-                    val_output_dask = ssp_output_dask[-val_months:]
-                    # Early months go to training if there are any
-                    train_inputs_dask_list.append(ssp_input_dask[:-val_months])
-                    train_outputs_dask_list.append(ssp_output_dask[:-val_months])
+                    val_in_dask = ssp_in[-val_months:]
+                    val_out_dask = ssp_out[-val_months:]
+                    train_in_dasks.append(ssp_in[:-val_months])
+                    train_out_dasks.append(ssp_out[:-val_months])
                 else:
-                    # All other SSPs go entirely to training
-                    train_inputs_dask_list.append(ssp_input_dask)
-                    train_outputs_dask_list.append(ssp_output_dask)
+                    train_in_dasks.append(ssp_in)
+                    train_out_dasks.append(ssp_out)
 
-            # Concatenate training data only
-            train_input_dask = da.concatenate(train_inputs_dask_list, axis=0)
-            train_output_dask = da.concatenate(train_outputs_dask_list, axis=0)
+            train_input_dask = da.concatenate(train_in_dasks, axis=0)
+            train_output_dask = da.concatenate(train_out_dasks, axis=0)
 
-            # Compute z-score normalization statistics using the training data
+            # Normalisation stats
             input_mean = da.nanmean(train_input_dask, axis=(0, 2, 3), keepdims=True).compute()
             input_std = da.nanstd(train_input_dask, axis=(0, 2, 3), keepdims=True).compute()
             output_mean = da.nanmean(train_output_dask, axis=(0, 2, 3), keepdims=True).compute()
@@ -216,16 +185,13 @@ class ClimateEmulationDataModule(LightningDataModule):
             self.normalizer.set_input_statistics(mean=input_mean, std=input_std)
             self.normalizer.set_output_statistics(mean=output_mean, std=output_std)
 
-            # --- Define Normalized Training Dask Arrays ---
-            train_input_norm_dask = self.normalizer.normalize(train_input_dask, data_type="input")
-            train_output_norm_dask = self.normalizer.normalize(train_output_dask, data_type="output")
+            train_in_norm = self.normalizer.normalize(train_input_dask, data_type="input")
+            train_out_norm = self.normalizer.normalize(train_output_dask, data_type="output")
+            val_in_norm = self.normalizer.normalize(val_in_dask, data_type="input")
+            val_out_norm = self.normalizer.normalize(val_out_dask, data_type="output")
 
-            # --- Define Normalized Validation Dask Arrays ---
-            val_input_norm_dask = self.normalizer.normalize(val_input_dask, data_type="input")
-            val_output_norm_dask = self.normalizer.normalize(val_output_dask, data_type="output")
-
-            # --- Prepare Test Data ---
-            full_test_input_dask, full_test_output_dask = _load_process_ssp_data(
+            # ---- Test ----
+            full_test_in, full_test_out = _load_process_ssp_data(
                 ds,
                 self.hparams.test_ssp,
                 self.hparams.input_vars,
@@ -233,46 +199,40 @@ class ClimateEmulationDataModule(LightningDataModule):
                 self.hparams.target_member_id,
                 spatial_template_da,
             )
+            test_slice = slice(-self.hparams.test_months, None)
+            test_in_norm = self.normalizer.normalize(full_test_in[test_slice], data_type="input")
+            test_out_raw = full_test_out[test_slice]  # un‑normalised
 
-            # --- Slice Test Data ---
-            test_slice = slice(-self.hparams.test_months, None)  # Last N months
+        self.train_dataset = ClimateDataset(train_in_norm, train_out_norm, output_is_normalized=True)
+        self.val_dataset = ClimateDataset(val_in_norm, val_out_norm, output_is_normalized=True)
+        self.test_dataset = ClimateDataset(test_in_norm, test_out_raw, output_is_normalized=False)
 
-            sliced_test_input_dask = full_test_input_dask[test_slice]
-            sliced_test_output_raw_dask = full_test_output_dask[test_slice]
-
-            # --- Define Normalized Test Input Dask Array ---
-            test_input_norm_dask = self.normalizer.normalize(sliced_test_input_dask, data_type="input")
-            test_output_raw_dask = sliced_test_output_raw_dask  # Keep unnormed for evaluation
-
-        # Create datasets
-        self.train_dataset = ClimateDataset(train_input_norm_dask, train_output_norm_dask, output_is_normalized=True)
-        self.val_dataset = ClimateDataset(val_input_norm_dask, val_output_norm_dask, output_is_normalized=True)
-        self.test_dataset = ClimateDataset(test_input_norm_dask, test_output_raw_dask, output_is_normalized=False)
-
-        # Log dataset sizes in a single message
         log.info(
-            f"Datasets created. Train: {len(self.train_dataset)}, Val: {len(self.val_dataset)} (last months of {val_ssp}), Test: {len(self.test_dataset)}"
+            f"Datasets → Train {len(self.train_dataset)} • Val {len(self.val_dataset)} • Test {len(self.test_dataset)}"
         )
 
-    # Common DataLoader configuration
-    def _get_dataloader_kwargs(self, is_train=False):
-        """Return common DataLoader configuration as a dictionary"""
+    # ---------------------------------------------------------------------
+    # DataLoaders
+    # ---------------------------------------------------------------------
+
+    def _get_dataloader_kwargs(self, train=False):
         return {
-            "batch_size": self.hparams.batch_size if is_train else self.hparams.eval_batch_size,
-            "shuffle": is_train,  # Only shuffle training data
+            "batch_size": self.hparams.batch_size if train else self.hparams.eval_batch_size,
+            "shuffle": train,
             "num_workers": self.hparams.num_workers,
             "persistent_workers": self.hparams.num_workers > 0,
             "pin_memory": True,
         }
 
     def train_dataloader(self):
-        return DataLoader(self.train_dataset, **self._get_dataloader_kwargs(is_train=True))
+        return DataLoader(self.train_dataset, **self._get_dataloader_kwargs(train=True))
 
     def val_dataloader(self):
-        return DataLoader(self.val_dataset, **self._get_dataloader_kwargs(is_train=False))
+        return DataLoader(self.val_dataset, **self._get_dataloader_kwargs(train=False))
 
     def test_dataloader(self):
-        return DataLoader(self.test_dataset, **self._get_dataloader_kwargs(is_train=False))
+        return DataLoader(self.test_dataset, **self._get_dataloader_kwargs(train=False))
+
 
     def get_lat_weights(self):
         """
@@ -510,8 +470,22 @@ class ClimateEmulationModule(pl.LightningModule):
 
         log.info(f"Kaggle submission saved to {filepath}")
 
+    # ---------------------------------------------------------------------
+    # Optimiser & LR scheduler
+    # ---------------------------------------------------------------------
     def configure_optimizers(self):
-        optimizer = optim.Adam(self.parameters(), lr=self.hparams.learning_rate)
+        # Optimiser
+        if hasattr(self.hparams, "optim"):
+            optimizer = instantiate(self.hparams.optim, params=self.parameters())
+        else:
+            lr = getattr(self.hparams, "lr", 1e-3)
+            optimizer = optim.AdamW(self.parameters(), lr=lr)
+
+        # Optional scheduler
+        if hasattr(self.hparams, "scheduler"):
+            scheduler = instantiate(self.hparams.scheduler, optimizer=optimizer)
+            return {"optimizer": optimizer, "lr_scheduler": scheduler}
+
         return optimizer
 
 
@@ -529,7 +503,7 @@ def main(cfg: DictConfig):
     model = get_model(cfg)
 
     # Create lightning module
-    lightning_module = ClimateEmulationModule(model, learning_rate=cfg.training.lr)
+    lightning_module = ClimateEmulationModule(model, learning_rate=cfg.training)
 
     # Create lightning trainer
     trainer_config = get_trainer_config(cfg, model=model)

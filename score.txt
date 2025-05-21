@@ -6,3 +6,6 @@ cnn_transformer - main.py - 80 epochs - local score 0.160
 cnn_transformer - augment.py - 87 epochs - local score: 0.168
 cnn_unet_transformer - main.py - 45 epochs - local score: 0.160
 cnn_unet_transformer - main.py - 57 epochs - local score: 0.161
+
+Notes:
+- Seems non-deterministic models performs better

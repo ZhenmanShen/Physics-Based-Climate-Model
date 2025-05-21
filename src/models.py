@@ -9,6 +9,8 @@ from .swin_unet import SwinUNet
 from .fno2d import FNO2D
 from .unet_attention_transformer import UNetAttentionTransformer
 from .cnn_unet_transformer import CNN_UNet_Transformer
+from .sfno import SFNO
+from .psfno import ProbSFNO
 
 
 def get_model(cfg: DictConfig):
@@ -95,6 +97,31 @@ def get_model(cfg: DictConfig):
             vit_layers=cfg.model.vit_layers,
             vit_heads=cfg.model.vit_heads,
             patch_size=cfg.model.patch_size,
+        )
+    elif cfg.model.type == "sfno":
+        return SFNO(
+            nlat=cfg.model.nlat,
+            nlon=cfg.model.nlon,
+            in_ch=len(cfg.data.input_vars),
+            out_ch=len(cfg.data.output_vars),
+            embed_dim=cfg.model.embed_dim,
+            lmax=cfg.model.lmax,
+            layers=cfg.model.layers,
+            depth=cfg.model.depth,
+            n_heads=cfg.model.n_heads,
+            mlp_dim=cfg.model.mlp_dim,
+            dropout=cfg.model.dropout,
+        )
+    elif cfg.model.type == "psfno":
+        from src.psfno import ProbSFNO  # if you need the bare model
+        return ProbSFNO(
+            nlat=cfg.model.nlat,
+            nlon=cfg.model.nlon,
+            in_ch=len(cfg.data.input_vars),
+            out_ch=len(cfg.data.output_vars),
+            embed_dim=cfg.model.embed_dim,
+            layers=cfg.model.layers,
+            lmax=cfg.model.lmax,
         )
     else:
         raise ValueError(f"Unknown model type: {cfg.model.type}")

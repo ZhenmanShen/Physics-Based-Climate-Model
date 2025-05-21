@@ -1,6 +1,6 @@
 # @package _global_.model
 
-type: unet_attention_transformer
+type: cnn_transformer_attention
 base_channels: 64          # or 32 for lighter model
 depth: 4
 vit_dim: 512
