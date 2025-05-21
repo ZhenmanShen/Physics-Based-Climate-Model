@@ -11,7 +11,7 @@ from .unet_attention_transformer import UNetAttentionTransformer
 from .cnn_unet_transformer import CNN_UNet_Transformer
 from .sfno import SFNO
 from .psfno import ProbSFNO
-
+from .fno_transformer import FNOTransformer
 
 def get_model(cfg: DictConfig):
     # Create model based on configuration
@@ -25,6 +25,19 @@ def get_model(cfg: DictConfig):
             in_channels=len(cfg.data.input_vars),
             out_channels=len(cfg.data.output_vars),
             base_channels=cfg.model.base_channels,
+        )
+    elif cfg.model.type == "fno_transformer":
+        return FNOTransformer(
+            in_channels=len(cfg.data.input_vars),
+            out_channels=len(cfg.data.output_vars),
+            modes=cfg.model.modes,
+            fno_width=cfg.model.fno_width,
+            fno_depth=cfg.model.fno_depth,
+            embed_dim=cfg.model.embed_dim,
+            trans_depth=cfg.model.trans_depth,
+            n_heads=cfg.model.n_heads,
+            mlp_dim=cfg.model.mlp_dim,
+            dropout=cfg.model.dropout,
         )
     elif cfg.model.type == "vit":
         return ViTClimate(
