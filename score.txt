@@ -9,3 +9,5 @@ cnn_unet_transformer - main.py - 57 epochs - local score: 0.161
 
 Notes:
 - Seems non-deterministic models performs better
+- Training for epochs seems to improve the score (unet++ 50 epochs - 1.18 vs. unet++ 100 epochs - 1.08)
+- As long as val/loss doesn't go up, training is still meaningful 

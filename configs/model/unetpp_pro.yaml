@@ -1,0 +1,5 @@
+# @package _global_.model
+
+type: unetpp_pro
+base_ch: 64           # 64 → ~9 M params
+deep_supervision: true

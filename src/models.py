@@ -4,7 +4,9 @@ from .vit_climate import ViTClimate
 from .cnn_transformer import CNNTransformer
 from  .cnn_transformer_attention import CNNTransformerAttention
 from .unet_transformer import UNetTransformer
-
+from .fno_transformer import FNOTransformer
+from .unetpp import UNetPlusPlus
+from .unetpp_pro import UNetPlusPlusPro
 
 def get_model(cfg: DictConfig):
     # Create model based on configuration
@@ -21,6 +23,20 @@ def get_model(cfg: DictConfig):
             mlp_dim=cfg.model.mlp_dim,
             dropout=cfg.model.dropout
         )
+    elif cfg.model.type == "unetpp":            
+        return UNetPlusPlus(
+            n_input_channels=len(cfg.data.input_vars),
+            n_output_channels=len(cfg.data.output_vars),
+            base_ch=cfg.model.base_ch,
+            deep_supervision=cfg.model.deep_supervision,
+        )
+    elif cfg.model.type == "unetpp_pro":         
+        return UNetPlusPlusPro(
+            n_input_channels=len(cfg.data.input_vars),
+            n_output_channels=len(cfg.data.output_vars),
+            base_ch=cfg.model.base_ch,
+            deep_supervision=cfg.model.deep_supervision,
+        )
     elif cfg.model.type == "cnn_transformer_attention":
         return CNNTransformerAttention(
             in_channels=len(cfg.data.input_vars),
@@ -30,6 +46,20 @@ def get_model(cfg: DictConfig):
             n_heads=cfg.model.n_heads,
             mlp_dim=cfg.model.mlp_dim,
             dropout=cfg.model.dropout
+        )
+    elif cfg.model.type == "fno_transformer":         # ▼ new branch
+        return FNOTransformer(
+            in_channels=len(cfg.data.input_vars),
+            out_channels=len(cfg.data.output_vars),
+            width=cfg.model.width,
+            depth_fno=cfg.model.depth_fno,
+            modes_y=cfg.model.modes_y,
+            modes_x=cfg.model.modes_x,
+            trans_layers=cfg.model.trans_layers,
+            n_heads=cfg.model.n_heads,
+            trans_mlp=cfg.model.trans_mlp,
+            dropout=cfg.model.dropout,
+            pool=cfg.model.pool
         )
     else:
         raise ValueError(f"Unknown model type: {cfg.model.type}")

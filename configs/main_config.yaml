@@ -2,9 +2,9 @@
 
 defaults:
   - data: default
-  - model: fno_transformer # Must change 
-  - training: cosine_training
-  - trainer: cosine_trainer
+  - model: unetpp_pro # Must change 
+  - training: default
+  - trainer: default
   - _self_
 
 # Global configs
