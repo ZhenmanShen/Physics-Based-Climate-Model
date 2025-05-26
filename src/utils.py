@@ -36,77 +36,56 @@ class Normalizer:
     Applies the standard normalization formula: (data - mean) / std
     """
 
-    def __init__(self):
+    def __init__(self, input_methods=None, output_methods=None):
         """Initialize the normalizer with empty parameters."""
-        self.mean_in, self.std_in = None, None
-        self.mean_out, self.std_out = None, None
+        self.input_methods  = input_methods  or {}
+        self.output_methods = output_methods or {}
+        self.mean_in,  self.std_in  = {}, {}
+        self.mean_out, self.std_out = {}, {}
 
-    def set_input_statistics(self, mean, std):
+    # ---------- internal helpers ----------
+    @staticmethod
+    def _forward(x, method, mean=None, std=None):
+        if method == "zscore":
+            return (x - mean) / std
+        if method == "log_zscore":
+            return (np.log1p(x) - mean) / std
+        if method == "cube_root":
+            return np.cbrt(x)
+        return x          # 'none' or unknown → identity
+
+    @staticmethod
+    def _inverse(x, method, mean=None, std=None):
+        if method == "zscore":
+            return x * std + mean
+        if method == "log_zscore":
+            return np.expm1(x * std + mean)
+        if method == "cube_root":
+            return np.power(x, 3)
+        return x
+    
+    def register_statistics(self, var, arr, is_input=True):
         """
-        Set normalization parameters for input features.
-
-        Args:
-            mean: Mean values for input normalization, shape [num_channels, 1, 1]
-            std: Standard deviation values for input normalization, shape [num_channels, 1, 1]
+        Compute and store mean/std **only if** the chosen method needs them.
         """
-        log.info(f"Setting input normalizer with mean shape: {mean.shape}, std shape: {std.shape}")
-        self.mean_in = mean
-        self.std_in = std
+        meth = (self.input_methods if is_input else self.output_methods).get(var, "zscore")
+        if meth in ("zscore", "log_zscore"):
+            mean, std = arr.mean(), arr.std() + 1e-8
+            store = (self.mean_in, self.std_in) if is_input else (self.mean_out, self.std_out)
+            store[0][var] = mean
+            store[1][var] = std
 
-    def set_output_statistics(self, mean, std):
-        """
-        Set normalization parameters for output values.
+    def normalize(self, data, var, is_input=True):
+        meth = (self.input_methods if is_input else self.output_methods).get(var, "zscore")
+        mean = (self.mean_in if is_input else self.mean_out).get(var)
+        std  = (self.std_in  if is_input else self.std_out ).get(var)
+        return self._forward(data, meth, mean, std)
 
-        Args:
-            mean: Mean value(s) for output normalization
-            std: Standard deviation value(s) for output normalization
-        """
-        log.info(f"Setting output normalizer with mean shape: {mean.shape}, std shape: {std.shape}")
-        self.mean_out = mean
-        self.std_out = std
-
-    def normalize(self, data, data_type="input"):
-        """
-        Normalize data using fitted mean and std values
-
-        Args:
-            data: Input data to normalize (numpy array or dask array)
-                 Expected shapes:
-                 - input: (time, channels, y, x)
-                 - output: (time, C, y, x) - channel dimension should already be added
-            data_type: Either 'input' or 'output' to specify which normalization to use
-
-        Returns:
-            Normalized data with same type as input
-        """
-        if data_type == "input":
-            if self.mean_in is None or self.std_in is None:
-                raise RuntimeError("Must fit input normalizer before normalizing input data")
-            return (data - self.mean_in) / self.std_in
-        elif data_type == "output":
-            if self.mean_out is None or self.std_out is None:
-                raise RuntimeError("Must fit output normalizer before normalizing output data")
-            # Output data should already have channel dimension
-            return (data - self.mean_out) / self.std_out
-        else:
-            raise ValueError(f"Unknown data_type: {data_type}. Use 'input' or 'output'")
-
-    def inverse_transform_output(self, data_norm):
-        """
-        Denormalize output data back to original scale
-
-        Args:
-            data_norm: Normalized output data with shape (..., C, lat, lon)
-
-        Returns:
-            Denormalized data in same format as input
-        """
-        if self.mean_out is None or self.std_out is None:
-            raise RuntimeError("Must fit output normalizer before inverse transforming")
-
-        # Handles broadcasting correctly
-        denormalized = data_norm * self.std_out + self.mean_out
-        return denormalized
+    def inverse(self, data_norm, var):
+        meth  = self.output_methods.get(var, "zscore")
+        mean  = self.mean_out.get(var)
+        std   = self.std_out.get(var)
+        return self._inverse(data_norm, meth, mean, std)
 
 
 def get_trainer_config(cfg: DictConfig, model=None) -> Dict[str, Any]:

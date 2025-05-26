@@ -407,42 +407,41 @@ class ClimateEmulationModule(pl.LightningModule):
             self.log(f"{phase}/{var_name}/time_stddev_mae", float(time_std_mae), **log_kwargs)
 
             # Extra logging of sample predictions/images to wandb for test phase (feel free to use this for validation)
-            # if is_test:
-            # Generate visualizations for test phase when using wandb
-            if isinstance(self.logger, WandbLogger):
-                # Time mean visualization
-                fig = create_comparison_plots(
-                    true_time_mean,
-                    pred_time_mean,
-                    title_prefix=f"{var_name} Mean",
-                    metric_value=time_mean_rmse,
-                    metric_name="Weighted RMSE",
-                )
-                self.logger.experiment.log({f"img/{phase}/{var_name}/time_mean": wandb.Image(fig)})
-                plt.close(fig)
+            if is_test:
+                # Generate visualizations for test phase when using wandb
+                if isinstance(self.logger, WandbLogger):
+                    # Time mean visualization
+                    fig = create_comparison_plots(
+                        true_time_mean,
+                        pred_time_mean,
+                        title_prefix=f"{var_name} Mean",
+                        metric_value=time_mean_rmse,
+                        metric_name="Weighted RMSE",
+                    )
+                    self.logger.experiment.log({f"img/{var_name}/time_mean": wandb.Image(fig)})
+                    plt.close(fig)
 
-                # Time standard deviation visualization
-                fig = create_comparison_plots(
-                    true_time_std,
-                    pred_time_std,
-                    title_prefix=f"{var_name} Stddev",
-                    metric_value=time_std_mae,
-                    metric_name="Weighted MAE",
-                    cmap="plasma",
-                )
-                self.logger.experiment.log({f"img/{phase}/{var_name}/time_Stddev": wandb.Image(fig)})
-                plt.close(fig)
+                    # Time standard deviation visualization
+                    fig = create_comparison_plots(
+                        true_time_std,
+                        pred_time_std,
+                        title_prefix=f"{var_name} Stddev",
+                        metric_value=time_std_mae,
+                        metric_name="Weighted MAE",
+                        cmap="plasma",
+                    )
+                    self.logger.experiment.log({f"img/{var_name}/time_Stddev": wandb.Image(fig)})
+                    plt.close(fig)
 
-                # Sample timesteps visualization
-                if n_timesteps > 3:
-                    # timesteps = np.random.choice(n_timesteps, 3, replace=False)
-                    timesteps = [0, 12, 24, 36, 48, 60, 72, 84, 96, 108]
-                    for t in timesteps:
-                        true_t = trues_xr.isel(time=t)
-                        pred_t = preds_xr.isel(time=t)
-                        fig = create_comparison_plots(true_t, pred_t, title_prefix=f"{var_name} Timestep {t}")
-                        self.logger.experiment.log({f"img/{var_name}/month_idx_{t}": wandb.Image(fig)})
-                        plt.close(fig)
+                    # Sample timesteps visualization
+                    if n_timesteps > 3:
+                        timesteps = np.random.choice(n_timesteps, 3, replace=False)
+                        for t in timesteps:
+                            true_t = trues_xr.isel(time=t)
+                            pred_t = preds_xr.isel(time=t)
+                            fig = create_comparison_plots(true_t, pred_t, title_prefix=f"{var_name} Timestep {t}")
+                            self.logger.experiment.log({f"img/{var_name}/month_idx_{t}": wandb.Image(fig)})
+                            plt.close(fig)
 
     def on_validation_epoch_end(self):
         # Compute time-mean and time-stddev errors using all validation months
@@ -479,65 +478,6 @@ class ClimateEmulationModule(pl.LightningModule):
         self._save_kaggle_submission(all_preds_denorm)
 
         self.test_step_outputs.clear()  # Clear the outputs list
-    
-    def _visualize_highest_loss(self, predictions, targets, losses):
-        # phase = "test" if is_test else "val"
-    
-        # Get number of evaluation timesteps
-        n_timesteps = predictions.shape[0]
-
-        # Get coordinates
-        lat_coords, lon_coords = self.trainer.datamodule.get_coords()
-        time_coords = np.arange(n_timesteps)
-        output_vars = self.trainer.datamodule.hparams.output_vars
-
-        # Process each output variable
-        for i, var_name in enumerate(output_vars):
-            # Extract channel data
-            preds_var = predictions[:, i, :, :]
-            trues_var = targets[:, i, :, :]
-
-            var_unit = "mm/day" if var_name == "pr" else "K" if var_name == "tas" else "unknown"
-
-            # Create xarray objects for weighted calculations
-            preds_xr = create_climate_data_array(
-                preds_var, time_coords, lat_coords, lon_coords, var_name=var_name, var_unit=var_unit
-            )
-            trues_xr = create_climate_data_array(
-                trues_var, time_coords, lat_coords, lon_coords, var_name=var_name, var_unit=var_unit
-            )
-
-            # Generate visualizations for train phase when using wandb
-            # Top 2 (or however many) train samples w/ highest loss
-            if isinstance(self.logger, WandbLogger):
-                topk = 2
-                topk_indices = losses.topk(topk).indices
-                
-                for t in topk_indices:
-                    true_t = trues_xr.isel(time=t)
-                    pred_t = preds_xr.isel(time=t)
-                    fig = create_comparison_plots(true_t, pred_t, title_prefix=f"{var_name} Timestep {t}")
-                    self.logger.experiment.log({f"img/train/{var_name}/month_idx_{t}": wandb.Image(fig)})
-                    plt.close(fig)
-
-    def on_train_end(self):
-        dataloader = self.trainer.datamodule.train_dataloader()
-        self.eval()
-        outputs = []
-        with torch.no_grad():
-            for batch in dataloader:
-                x, y_true = batch
-                y_pred = self(x.to(self.device))
-                loss = self.criterion(y_pred, y_true.to(self.device))
-                y_pred = self.normalizer.inverse_transform_output(y_pred.detach().cpu().numpy())
-                y_true = self.normalizer.inverse_transform_output(y_true.detach().cpu().numpy())
-                outputs.append((y_pred, y_true, loss.detach().cpu().item()))
-
-        all_preds_denorm = np.concatenate([pred for pred, true, loss in outputs], axis=0)
-        all_trues_denorm = np.concatenate([true for pred, true, loss in outputs], axis=0)
-        all_losses = torch.tensor([loss for pred, true, loss in outputs])
-
-        self._visualize_highest_loss(all_preds_denorm, all_trues_denorm, all_losses)
 
     def _save_kaggle_submission(self, predictions, suffix=""):
         """

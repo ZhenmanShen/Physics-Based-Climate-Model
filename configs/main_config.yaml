@@ -1,14 +1,26 @@
 # @package _global_
 
 defaults:
-  - data: default
-  - model: unetpp_pro # Must change 
+  - data: data
+  - model: Cnn_transformer_attention # Must change 
   - training: default
   - trainer: default
   - _self_
 
 # Global configs
 seed: 42
+
+# Normalization
+normalization:
+  input_transforms:
+    CO2 : zscore
+    CH4 : zscore
+    SO2 : cube_root     
+    BC  : cube_root
+    rsdt: zscore
+  output_transforms:
+    tas: zscore
+    pr : log_zscore       # x ** (1/3); better than raw or pure log for near-zero
 
 # Wandb logging, all arguments are only used if use_wandb is set to true
 use_wandb: true

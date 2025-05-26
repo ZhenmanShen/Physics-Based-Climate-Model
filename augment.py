@@ -1,9 +1,16 @@
+# 1. Augment Data Loading for MOre Variability
+# Modified _load_process_ssp_data and ClimateEmulationDataModule to iterate over member_id values (e.g., [0, 1, 2]) and concatenate the results
+
+
+
 import os
 from datetime import datetime
 
 import dask.array as da
 import hydra
 import lightning.pytorch as pl
+import matplotlib
+matplotlib.use("Agg") 
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
@@ -34,58 +41,9 @@ from src.utils import (
     get_trainer_config,
 )
 
-### Helper Function for Data Augmentation ###
-
-class TrainTransforms:
-    """Top‐level callable so it can be pickled under Windows spawn."""
-    def __init__(self, jitter_cfg):
-        self.jitter_cfg = jitter_cfg
-
-    def __call__(self, x, y):
-        # 1) horizontal roll/flip
-        if torch.rand(1) < 0.5:
-            x = torch.flip(x, dims=[-1])
-            y = torch.flip(y, dims=[-1])
-        # 2) 180° rotation (latitude preserved)
-        if torch.rand(1) < 0.5:
-            x = torch.rot90(x, 2, dims=[-2, -1])
-            y = torch.rot90(y, 2, dims=[-2, -1])
-        # 3) jitter forcings
-        for i, pct in enumerate(self.jitter_cfg):
-            noise = 1.0 + (torch.rand(1)*2 - 1) * pct
-            x[i] = x[i] * noise
-        return x, y
-
-
-def random_flip_rotate(x, y):
-    # 50% chance horizontal (longitude) flip
-    if torch.rand(1) < 0.5:
-        x = torch.flip(x, dims=[-1])
-        y = torch.flip(y, dims=[-1])
-    # random 0°, 90°, 180°, or 270° rotation
-    k = torch.randint(0, 4, (1,)).item()
-    x = torch.rot90(x, k, dims=[-2, -1])
-    y = torch.rot90(y, k, dims=[-2, -1])
-    return x, y
-
-def jitter_forcings(x, y, jitter_cfg):
-    # assume first N channels of x correspond to forcings in the same order
-    for i, pct in enumerate(jitter_cfg):
-        # pct is the max relative jitter, e.g. 0.01 for ±1%
-        noise = 1.0 + (torch.rand(1) * 2 - 1) * pct
-        x[i] = x[i] * noise
-    return x, y
-
-# wrap‐around shift along x‐axis
-def random_longitude_roll(x, y, max_shift=5):
-    shift = torch.randint(-max_shift, max_shift+1, (1,)).item()
-    x = torch.roll(x, shifts=shift, dims=-1)
-    y = torch.roll(y, shifts=shift, dims=-1)
-    return x, y
 
 # Setup logging
 log = get_logger(__name__)
-
 
 
 # --- Data Handling ---
@@ -93,7 +51,7 @@ log = get_logger(__name__)
 
 # Dataset to precompute all tensors during initialization
 class ClimateDataset(Dataset):
-    def __init__(self, inputs_norm_dask, outputs_dask, output_is_normalized=True, transforms=None):
+    def __init__(self, inputs_norm_dask, outputs_dask, output_is_normalized=True):
         # Store dataset size
         self.size = inputs_norm_dask.shape[0]
 
@@ -109,7 +67,6 @@ class ClimateDataset(Dataset):
         # Convert to PyTorch tensors
         self.input_tensors = torch.from_numpy(inputs_np).float()
         self.output_tensors = torch.from_numpy(outputs_np).float()
-        self.transforms = transforms
 
         # Handle NaN values (should not occur)
         if torch.isnan(self.input_tensors).any() or torch.isnan(self.output_tensors).any():
@@ -119,68 +76,60 @@ class ClimateDataset(Dataset):
         return self.size
 
     def __getitem__(self, idx):
-        x = self.input_tensors[idx].clone()
-        y = self.output_tensors[idx].clone()
-        if self.transforms is not None:
-            x, y = self.transforms(x, y)
-        return x, y
+        return self.input_tensors[idx], self.output_tensors[idx]
 
 
-def _load_process_ssp_data(ds, ssp, input_variables, output_variables, member_id, spatial_template):
+# Updated to return all ensemble members
+def _load_process_ssp_data(
+    ds,
+    ssp: str,
+    input_variables: list[str],
+    output_variables: list[str],
+    member_ids: list[int],
+    spatial_template: xr.DataArray,
+):
     """
-    Loads and processes input and output variables for a single SSP using Dask.
-
-    Args:
-        ds (xr.Dataset): The opened xarray dataset.
-        ssp (str): The SSP identifier (e.g., 'ssp126').
-        input_variables (list): List of input variable names.
-        output_variables (list): List of output variable names.
-        member_id (int): The member ID to select.
-        spatial_template (xr.DataArray): A template DataArray with ('y', 'x') dimensions
-                                          for broadcasting global variables.
-
-    Returns:
-        tuple: (input_dask_array, output_dask_array)
-               - input_dask_array: Stacked dask array of inputs (time, channels, y, x).
-               - output_dask_array: Stacked dask array of outputs (time, channels, y, x).
+    Returns inputs & outputs for **all requested ensemble members**,
+    concatenated on the *time* axis (time × channels × y × x).
     """
-    ssp_input_dasks = []
-    for var in input_variables:
-        da_var = ds[var].sel(ssp=ssp)
-        # Rename spatial dims if needed
-        if "latitude" in da_var.dims:
-            da_var = da_var.rename({"latitude": "y", "longitude": "x"})
-        # Select member if applicable
-        if "member_id" in da_var.dims:
-            da_var = da_var.sel(member_id=member_id)
+    input_members, output_members = [], []
 
-        # Process based on dimensions
-        if set(da_var.dims) == {"time"}:  # Global variable, broadcast to spatial dims:
-            # Broadcast like template, then transpose to ensure ('time', 'y', 'x')
-            da_var_expanded = da_var.broadcast_like(spatial_template).transpose("time", "y", "x")
-            ssp_input_dasks.append(da_var_expanded.data)
-        elif set(da_var.dims) == {"time", "y", "x"}:  # Spatially resolved
+    for m in member_ids:
+        ssp_input_dasks, ssp_output_dasks = [], []
+
+        # ---------- INPUTS ----------
+        for var in input_variables:
+            da_var = ds[var].sel(ssp=ssp)
+            if "latitude" in da_var.dims:   # rename spatial dims once
+                da_var = da_var.rename({"latitude": "y", "longitude": "x"})
+            if "member_id" in da_var.dims:
+                da_var = da_var.sel(member_id=m)
+
+            if set(da_var.dims) == {"time"}:        # global -> broadcast
+                da_var = da_var.broadcast_like(spatial_template).transpose("time", "y", "x")
+            elif set(da_var.dims) != {"time", "y", "x"}:
+                raise ValueError(f"Unexpected dims {da_var.dims} for {var}")
+
             ssp_input_dasks.append(da_var.data)
-        else:
-            raise ValueError(f"Unexpected dimensions for variable {var} in SSP {ssp}: {da_var.dims}")
 
-    # Stack inputs along channel dimension -> dask array (time, channels, y, x)
-    stacked_input_dask = da.stack(ssp_input_dasks, axis=1)
+        # time × C_in × y × x  (for one member)
+        input_members.append(da.stack(ssp_input_dasks, axis=1))
 
-    # Prepare output dask arrays for each output variable
-    output_dasks = []
-    for var in output_variables:
-        da_output = ds[var].sel(ssp=ssp, member_id=member_id)
-        # Ensure output also uses y, x if necessary
-        if "latitude" in da_output.dims:
-            da_output = da_output.rename({"latitude": "y", "longitude": "x"})
+        # ---------- OUTPUTS ----------
+        for var in output_variables:
+            da_out = ds[var].sel(ssp=ssp, member_id=m)
+            if "latitude" in da_out.dims:
+                da_out = da_out.rename({"latitude": "y", "longitude": "x"})
+            ssp_output_dasks.append(da_out.data)
 
-        # Add time, y, x dimensions as a dask array
-        output_dasks.append(da_output.data)
+        # time × C_out × y × x  (for one member)
+        output_members.append(da.stack(ssp_output_dasks, axis=1))
 
-    # Stack outputs along channel dimension -> dask array (time, channels, y, x)
-    stacked_output_dask = da.stack(output_dasks, axis=1)
-    return stacked_input_dask, stacked_output_dask
+    # concat the *members* along time, keeping chronology per member
+    stacked_input = da.concatenate(input_members, axis=0)
+    stacked_output = da.concatenate(output_members, axis=0)
+    return stacked_input, stacked_output
+
 
 
 class ClimateEmulationDataModule(LightningDataModule):
@@ -191,18 +140,18 @@ class ClimateEmulationDataModule(LightningDataModule):
         output_vars: list,
         train_ssps: list,
         test_ssp: str,
-        target_member_id: int,
         test_months: int = 360,
         batch_size: int = 32,
         eval_batch_size: int = None,
         num_workers: int = 0,
         seed: int = 42,
-        augmentations: dict | None = None,    # ← add this
+        member_ids: list[int] = (0,),
     ):
         super().__init__()
         self.save_hyperparameters()
         self.hparams.path = to_absolute_path(path)
         self.normalizer = Normalizer()
+        self.hparams.member_ids = list(member_ids)
 
         # Set evaluation batch size to training batch size if not specified
         if eval_batch_size is None:
@@ -217,7 +166,32 @@ class ClimateEmulationDataModule(LightningDataModule):
             raise FileNotFoundError(f"Data path not found: {self.hparams.path}")
         log.info(f"Data found at: {self.hparams.path}")
 
+
+
     def setup(self, stage: str | None = None):
+
+        # Helper function 
+        def normalize_input_dask(dask_array):
+            normed = []
+            for ch, var in enumerate(self.hparams.input_vars):
+                normed_ch = dask_array[:, ch, :, :].map_blocks(
+                    lambda x, v=var: self.normalizer.normalize(x, v, is_input=True),
+                    dtype=np.float32,
+                )
+                normed.append(normed_ch)
+            return da.stack(normed, axis=1)
+
+        def normalize_output_dask(dask_array):
+            normed = []
+            for ch, var in enumerate(self.hparams.output_vars):
+                normed_ch = dask_array[:, ch, :, :].map_blocks(
+                    lambda x, v=var: self.normalizer.normalize(x, v, is_input=False),
+                    dtype=np.float32,
+                )
+                normed.append(normed_ch)
+            return da.stack(normed, axis=1)
+
+
         log.info(f"Setting up data module for stage: {stage} from {self.hparams.path}")
 
         # Use context manager for opening dataset
@@ -241,7 +215,7 @@ class ClimateEmulationDataModule(LightningDataModule):
                     ssp,
                     self.hparams.input_vars,
                     self.hparams.output_vars,
-                    self.hparams.target_member_id,
+                    self.hparams.member_ids,
                     spatial_template_da,
                 )
 
@@ -262,22 +236,24 @@ class ClimateEmulationDataModule(LightningDataModule):
             train_input_dask = da.concatenate(train_inputs_dask_list, axis=0)
             train_output_dask = da.concatenate(train_outputs_dask_list, axis=0)
 
-            # Compute z-score normalization statistics using the training data
-            input_mean = da.nanmean(train_input_dask, axis=(0, 2, 3), keepdims=True).compute()
-            input_std = da.nanstd(train_input_dask, axis=(0, 2, 3), keepdims=True).compute()
-            output_mean = da.nanmean(train_output_dask, axis=(0, 2, 3), keepdims=True).compute()
-            output_std = da.nanstd(train_output_dask, axis=(0, 2, 3), keepdims=True).compute()
+            # --- Compute normalization stats per variable ---
+            for ch, var in enumerate(self.hparams.input_vars):
+                arr = train_input_dask[:, ch, :, :].compute()
+                self.normalizer.register_statistics(var, arr, is_input=True)
 
-            self.normalizer.set_input_statistics(mean=input_mean, std=input_std)
-            self.normalizer.set_output_statistics(mean=output_mean, std=output_std)
+            for ch, var in enumerate(self.hparams.output_vars):
+                arr = train_output_dask[:, ch, :, :].compute()
+                self.normalizer.register_statistics(var, arr, is_input=False)
+
+
 
             # --- Define Normalized Training Dask Arrays ---
-            train_input_norm_dask = self.normalizer.normalize(train_input_dask, data_type="input")
-            train_output_norm_dask = self.normalizer.normalize(train_output_dask, data_type="output")
+            train_input_norm_dask = normalize_input_dask(train_input_dask)
+            train_output_norm_dask = normalize_output_dask(train_output_dask)
 
             # --- Define Normalized Validation Dask Arrays ---
-            val_input_norm_dask = self.normalizer.normalize(val_input_dask, data_type="input")
-            val_output_norm_dask = self.normalizer.normalize(val_output_dask, data_type="output")
+            val_input_norm_dask = normalize_input_dask(val_input_dask)
+            val_output_norm_dask = normalize_output_dask(val_output_dask)
 
             # --- Prepare Test Data ---
             full_test_input_dask, full_test_output_dask = _load_process_ssp_data(
@@ -285,7 +261,7 @@ class ClimateEmulationDataModule(LightningDataModule):
                 self.hparams.test_ssp,
                 self.hparams.input_vars,
                 self.hparams.output_vars,
-                self.hparams.target_member_id,
+                self.hparams.member_ids,
                 spatial_template_da,
             )
 
@@ -296,22 +272,13 @@ class ClimateEmulationDataModule(LightningDataModule):
             sliced_test_output_raw_dask = full_test_output_dask[test_slice]
 
             # --- Define Normalized Test Input Dask Array ---
-            test_input_norm_dask = self.normalizer.normalize(sliced_test_input_dask, data_type="input")
+            test_input_norm_dask = normalize_input_dask(sliced_test_input_dask)
             test_output_raw_dask = sliced_test_output_raw_dask  # Keep unnormed for evaluation
 
         # Create datasets
-        # build transforms from your config
-        jitter_cfg = self.hparams.augmentations["train"]["jitter"]
-        transforms = TrainTransforms(jitter_cfg)
-        self.train_dataset = ClimateDataset(
-            train_input_norm_dask,
-            train_output_norm_dask,
-            output_is_normalized=True,
-            transforms=transforms
-        )
+        self.train_dataset = ClimateDataset(train_input_norm_dask, train_output_norm_dask, output_is_normalized=True)
         self.val_dataset = ClimateDataset(val_input_norm_dask, val_output_norm_dask, output_is_normalized=True)
         self.test_dataset = ClimateDataset(test_input_norm_dask, test_output_raw_dask, output_is_normalized=False)
-
 
         # Log dataset sizes in a single message
         log.info(
@@ -406,8 +373,16 @@ class ClimateEmulationModule(pl.LightningModule):
         self.log("val/loss", loss, on_step=False, on_epoch=True, prog_bar=True, batch_size=x.size(0), sync_dist=True)
 
         # Save unnormalized outputs for decadal mean/stddev calculation in validation_epoch_end
-        y_pred_norm = self.normalizer.inverse_transform_output(y_pred_norm.cpu().numpy())
-        y_true_norm = self.normalizer.inverse_transform_output(y_true_norm.cpu().numpy())
+        y_pred_norm = np.stack(
+            [self.normalizer.inverse(y_pred_norm.cpu().numpy()[:, i, :, :], var)
+            for i, var in enumerate(self.trainer.datamodule.hparams.output_vars)],
+            axis=1
+        )#self.normalizer.inverse_transform_output(y_pred_norm.cpu().numpy())
+        y_true_norm = np.stack(
+            [self.normalizer.inverse(y_true_norm.cpu().numpy()[:, i, :, :], var)
+            for i, var in enumerate(self.trainer.datamodule.hparams.output_vars)],
+            axis=1
+        )#self.normalizer.inverse_transform_output(y_true_norm.cpu().numpy())
         self.validation_step_outputs.append((y_pred_norm, y_true_norm))
 
         return loss
@@ -471,41 +446,42 @@ class ClimateEmulationModule(pl.LightningModule):
             self.log(f"{phase}/{var_name}/time_stddev_mae", float(time_std_mae), **log_kwargs)
 
             # Extra logging of sample predictions/images to wandb for test phase (feel free to use this for validation)
-            if is_test:
-                # Generate visualizations for test phase when using wandb
-                if isinstance(self.logger, WandbLogger):
-                    # Time mean visualization
-                    fig = create_comparison_plots(
-                        true_time_mean,
-                        pred_time_mean,
-                        title_prefix=f"{var_name} Mean",
-                        metric_value=time_mean_rmse,
-                        metric_name="Weighted RMSE",
-                    )
-                    self.logger.experiment.log({f"img/{var_name}/time_mean": wandb.Image(fig)})
-                    plt.close(fig)
+            # if is_test:
+            # Generate visualizations for test phase when using wandb
+            if isinstance(self.logger, WandbLogger):
+                # Time mean visualization
+                fig = create_comparison_plots(
+                    true_time_mean,
+                    pred_time_mean,
+                    title_prefix=f"{var_name} Mean",
+                    metric_value=time_mean_rmse,
+                    metric_name="Weighted RMSE",
+                )
+                self.logger.experiment.log({f"img/{phase}/{var_name}/time_mean": wandb.Image(fig)})
+                plt.close(fig)
 
-                    # Time standard deviation visualization
-                    fig = create_comparison_plots(
-                        true_time_std,
-                        pred_time_std,
-                        title_prefix=f"{var_name} Stddev",
-                        metric_value=time_std_mae,
-                        metric_name="Weighted MAE",
-                        cmap="plasma",
-                    )
-                    self.logger.experiment.log({f"img/{var_name}/time_Stddev": wandb.Image(fig)})
-                    plt.close(fig)
+                # Time standard deviation visualization
+                fig = create_comparison_plots(
+                    true_time_std,
+                    pred_time_std,
+                    title_prefix=f"{var_name} Stddev",
+                    metric_value=time_std_mae,
+                    metric_name="Weighted MAE",
+                    cmap="plasma",
+                )
+                self.logger.experiment.log({f"img/{phase}/{var_name}/time_Stddev": wandb.Image(fig)})
+                plt.close(fig)
 
-                    # Sample timesteps visualization
-                    if n_timesteps > 3:
-                        timesteps = np.random.choice(n_timesteps, 3, replace=False)
-                        for t in timesteps:
-                            true_t = trues_xr.isel(time=t)
-                            pred_t = preds_xr.isel(time=t)
-                            fig = create_comparison_plots(true_t, pred_t, title_prefix=f"{var_name} Timestep {t}")
-                            self.logger.experiment.log({f"img/{var_name}/month_idx_{t}": wandb.Image(fig)})
-                            plt.close(fig)
+                # Sample timesteps visualization
+                if n_timesteps > 3:
+                    # timesteps = np.random.choice(n_timesteps, 3, replace=False)
+                    timesteps = [0, 12, 24, 36, 48, 60, 72, 84, 96, 108]
+                    for t in timesteps:
+                        true_t = trues_xr.isel(time=t)
+                        pred_t = preds_xr.isel(time=t)
+                        fig = create_comparison_plots(true_t, pred_t, title_prefix=f"{var_name} Timestep {t}")
+                        self.logger.experiment.log({f"img/{var_name}/month_idx_{t}": wandb.Image(fig)})
+                        plt.close(fig)
 
     def on_validation_epoch_end(self):
         # Compute time-mean and time-stddev errors using all validation months
@@ -525,7 +501,11 @@ class ClimateEmulationModule(pl.LightningModule):
         x, y_true_denorm = batch
         y_pred_norm = self(x)
         # Denormalize the predictions for evaluation back to original scale
-        y_pred_denorm = self.normalizer.inverse_transform_output(y_pred_norm.cpu().numpy())
+        y_pred_denorm = np.stack(
+            [self.normalizer.inverse(y_pred_norm.cpu().numpy()[:, i, :, :], var)
+            for i, var in enumerate(self.trainer.datamodule.hparams.output_vars)],
+            axis=1
+        )#self.normalizer.inverse_transform_output(y_pred_norm.cpu().numpy())
         y_true_denorm_np = y_true_denorm.cpu().numpy()
         self.test_step_outputs.append((y_pred_denorm, y_true_denorm_np))
 
@@ -542,6 +522,73 @@ class ClimateEmulationModule(pl.LightningModule):
         self._save_kaggle_submission(all_preds_denorm)
 
         self.test_step_outputs.clear()  # Clear the outputs list
+    
+    def _visualize_highest_loss(self, predictions, targets, losses):
+        # phase = "test" if is_test else "val"
+    
+        # Get number of evaluation timesteps
+        n_timesteps = predictions.shape[0]
+
+        # Get coordinates
+        lat_coords, lon_coords = self.trainer.datamodule.get_coords()
+        time_coords = np.arange(n_timesteps)
+        output_vars = self.trainer.datamodule.hparams.output_vars
+
+        # Process each output variable
+        for i, var_name in enumerate(output_vars):
+            # Extract channel data
+            preds_var = predictions[:, i, :, :]
+            trues_var = targets[:, i, :, :]
+
+            var_unit = "mm/day" if var_name == "pr" else "K" if var_name == "tas" else "unknown"
+
+            # Create xarray objects for weighted calculations
+            preds_xr = create_climate_data_array(
+                preds_var, time_coords, lat_coords, lon_coords, var_name=var_name, var_unit=var_unit
+            )
+            trues_xr = create_climate_data_array(
+                trues_var, time_coords, lat_coords, lon_coords, var_name=var_name, var_unit=var_unit
+            )
+
+            # Generate visualizations for train phase when using wandb
+            # Top 2 (or however many) train samples w/ highest loss
+            if isinstance(self.logger, WandbLogger):
+                topk = 2
+                topk_indices = losses.topk(topk).indices
+                
+                for t in topk_indices:
+                    true_t = trues_xr.isel(time=t)
+                    pred_t = preds_xr.isel(time=t)
+                    fig = create_comparison_plots(true_t, pred_t, title_prefix=f"{var_name} Timestep {t}")
+                    self.logger.experiment.log({f"img/train/{var_name}/month_idx_{t}": wandb.Image(fig)})
+                    plt.close(fig)
+
+    def on_train_end(self):
+        dataloader = self.trainer.datamodule.train_dataloader()
+        self.eval()
+        outputs = []
+        with torch.no_grad():
+            for batch in dataloader:
+                x, y_true = batch
+                y_pred = self(x.to(self.device))
+                loss = self.criterion(y_pred, y_true.to(self.device))
+                y_pred = np.stack(
+                    [self.normalizer.inverse(y_pred.detach().cpu().numpy()[:, i, :, :], var)
+                    for i, var in enumerate(self.trainer.datamodule.hparams.output_vars)],
+                    axis=1
+                )#self.normalizer.inverse_transform_output(y_pred.detach().cpu().numpy())
+                y_true = np.stack(
+                    [self.normalizer.inverse(y_true.detach().cpu().numpy()[:, i, :, :], var)
+                    for i, var in enumerate(self.trainer.datamodule.hparams.output_vars)],
+                    axis=1
+                )#self.normalizer.inverse_transform_output(y_true.detach().cpu().numpy())
+                outputs.append((y_pred, y_true, loss.detach().cpu().item()))
+
+        all_preds_denorm = np.concatenate([pred for pred, true, loss in outputs], axis=0)
+        all_trues_denorm = np.concatenate([true for pred, true, loss in outputs], axis=0)
+        all_losses = torch.tensor([loss for pred, true, loss in outputs])
+
+        self._visualize_highest_loss(all_preds_denorm, all_trues_denorm, all_losses)
 
     def _save_kaggle_submission(self, predictions, suffix=""):
         """
@@ -570,7 +617,7 @@ class ClimateEmulationModule(pl.LightningModule):
         if wandb is not None and isinstance(self.logger, WandbLogger):
             pass
             # Optionally, uncomment the following line to save the submission to the wandb cloud
-            # self.logger.experiment.log_artifact(filepath)  # Log to wandb if available
+            self.logger.experiment.log_artifact(filepath)  # Log to wandb if available
 
         log.info(f"Kaggle submission saved to {filepath}")
 
@@ -591,6 +638,11 @@ def main(cfg: DictConfig):
     # Create data module with parameters from configs
     datamodule = ClimateEmulationDataModule(seed=cfg.seed, **cfg.data)
     model = get_model(cfg)
+    datamodule = ClimateEmulationDataModule(seed=cfg.seed, **cfg.data)
+    datamodule.normalizer = Normalizer(
+        input_methods=cfg.normalization.input_transforms,
+        output_methods=cfg.normalization.output_transforms
+    )
 
     # Create lightning module
     lightning_module = ClimateEmulationModule(model, learning_rate=cfg.training.lr)

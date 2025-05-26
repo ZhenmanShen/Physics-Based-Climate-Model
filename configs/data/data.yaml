@@ -1,6 +1,6 @@
 # @package _global_.data
 
-path: data/processed.zarr
+path: data/processed.zarr  # Path to the processed Zarr dataset
 
 input_vars: 
   - "CO2"
@@ -12,8 +12,7 @@ input_vars:
 output_vars:
   - "tas"
   - "pr"
-target_member_id: 0
-
+member_ids: [0, 1, 2]
 
 train_ssps: 
   - "ssp126"
@@ -25,14 +24,3 @@ test_months: 360
 
 batch_size: 64 # Nvidia GPU has headroom, CHANGE to 32 if not using Nvidia GPU
 num_workers: 4
-
-augmentations:
-  train:
-    random_flip: true
-    random_rotate: true
-    jitter: [0.01, 0.01, 0.02, 0.01, 0.00]
-
-
-# shuffle_train: true
-# pin_memory: true
-# drop_last: true
