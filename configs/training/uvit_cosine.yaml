@@ -4,7 +4,7 @@ lr: 5e-4
 
 optimizer:
   _target_: torch.optim.AdamW
-  lr: ${.lr}  
+  lr: ${training.lr}  
   weight_decay: 1.0e-4
 
 # 5-epoch warm-up is handled inside Model.configure_optimizers()

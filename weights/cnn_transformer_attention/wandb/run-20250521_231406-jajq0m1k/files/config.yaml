@@ -1,0 +1,2909 @@
+_wandb:
+    value:
+        cli_version: 0.19.11
+        m:
+            - "1": gradients/transformer.layers.1.linear2.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": trainer/global_step
+              "6":
+                - 3
+              "7": []
+            - "1": img/tas/time_Stddev.size
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/tas/month_idx_42.height
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.3.norm1.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.2.self_attn.out_proj.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.0.linear1.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.3.linear2.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.0.linear2.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/pr/time_mean.sha256
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/pr/time_Stddev.width
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/cbam.conv_spatial.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.0.linear2.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.3.self_attn.in_proj_bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.1.self_attn.out_proj.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/pr/time_mean.size
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.3.linear1.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.0.linear2.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.2.self_attn.out_proj.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.1.self_attn.in_proj_weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.3.linear2.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/decoder.4.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.1.norm1.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.2.self_attn.out_proj.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.0.self_attn.out_proj.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.3.norm2.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/tas/time_mean.format
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": train/loss
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.3.self_attn.in_proj_weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.0.self_attn.out_proj.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.0.norm1.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.1.self_attn.in_proj_weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.2.norm2.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.3.linear2.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.0.self_attn.out_proj.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.3.self_attn.in_proj_weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.1.self_attn.in_proj_weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.1.self_attn.out_proj.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.0.self_attn.in_proj_bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.2.self_attn.in_proj_bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.0.norm1.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/tas/month_idx_42.path
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.1.linear1.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.3.linear1.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.0.self_attn.out_proj.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.3.norm2.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.0.norm2.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.1.self_attn.in_proj_weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.2.norm2.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.0.self_attn.in_proj_bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.3.norm1.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.1.self_attn.in_proj_bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/decoder.0.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/pr/month_idx_205.path
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/pr/month_idx_205.width
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.1.norm2.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.1.self_attn.in_proj_weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/encoder.0.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.2.norm2.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/encoder.2.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/tas/time_mean.size
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.3.norm1.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.3.norm2.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/tas/month_idx_285.height
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/pr/month_idx_77.format
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.0.linear1.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.0.norm1.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.1.self_attn.in_proj_weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.3.norm1.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/tas/month_idx_285.size
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.0.self_attn.in_proj_bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/encoder.0.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.1.linear2.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.2.self_attn.in_proj_weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.1.self_attn.out_proj.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.3.self_attn.out_proj.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/cbam.conv_spatial.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.1.norm2.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/pr/time_Stddev.size
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/decoder.2.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.3.norm2.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/cbam.mlp.0.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.3.linear2.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.0.linear2.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.1.linear2.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/decoder.0.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/decoder.0.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/cbam.mlp.2.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/pr/time_mean.height
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/encoder.0.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.2.self_attn.out_proj.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.3.linear1.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/tas/month_idx_224.height
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.1.norm2.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/encoder.0.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.3.linear2.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.0.linear2.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.2.self_attn.in_proj_weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.0.self_attn.out_proj.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/cbam.mlp.0.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/pos_embedding._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/cbam.conv_spatial.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.2.norm1.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/tas/time_Stddev.sha256
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.0.self_attn.in_proj_bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.0.norm2.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.0.linear1.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/pr/month_idx_260.sha256
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.2.norm2.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.1.linear1.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/encoder.0.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.3.linear1.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/pr/month_idx_205.height
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/decoder.4.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/pos_embedding.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": test/pr/time_stddev_mae
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.2.self_attn.out_proj.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/tas/time_mean._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/decoder.0.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.2.norm2.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/decoder.2.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/decoder.2.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.3.self_attn.out_proj.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.3.norm2.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.3.linear1.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.0.self_attn.out_proj.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/encoder.0.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": val/tas/time_stddev_mae
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.0.linear1.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.1.norm1.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/tas/month_idx_224.size
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.0.self_attn.out_proj.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.0.linear1.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/pos_embedding.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": test/pr/time_mean_rmse
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.1.norm1.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/decoder.4.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/pr/month_idx_77.width
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/decoder.2.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.0.norm2.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.2.linear1.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/pr/month_idx_260.path
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/pr/month_idx_205.size
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.0.self_attn.out_proj.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.2.linear1.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.3.norm2.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.1.linear1.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.1.linear2.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/tas/time_Stddev.format
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/pr/month_idx_205.sha256
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.2.linear2.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.1.linear2.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/tas/month_idx_224.width
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/pr/time_Stddev.height
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.0.norm2.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/decoder.2.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.2.self_attn.in_proj_bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/tas/time_mean.width
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/cbam.mlp.2.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.1.norm1.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.1.norm1.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.2.self_attn.out_proj.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.2.linear2.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.2.norm2.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/decoder.0.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.2.norm1.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.3.self_attn.out_proj.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.3.linear1.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.0.linear1.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.0.linear1.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": test/tas/time_mean_rmse
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.3.self_attn.out_proj.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/encoder.0.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/pr/time_Stddev.format
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/encoder.2.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.2.linear1.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.2.norm1.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.3.norm1.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": val/tas/time_mean_rmse
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/pr/month_idx_260.format
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/decoder.2.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.0.linear1.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/decoder.0.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/pr/time_mean.path
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.0.self_attn.in_proj_weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.3.self_attn.out_proj.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.1.linear2.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.2.self_attn.in_proj_weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.3.self_attn.in_proj_weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.1.linear2.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.3.self_attn.in_proj_bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.3.linear1.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/pr/month_idx_77._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.2.self_attn.in_proj_bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.2.norm2.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/decoder.4.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": lr-Adam
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": val/pr/avg/monthly_rmse
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.2.self_attn.in_proj_weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": test/pr/avg/monthly_rmse
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/decoder.2.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.1.norm2.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/tas/time_Stddev.path
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/tas/month_idx_42._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.2.self_attn.out_proj.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.2.norm2.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/encoder.2.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.1.norm2.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.0.self_attn.out_proj.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.0.linear2.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.3.norm1.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.1.linear2.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/cbam.mlp.0.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/tas/month_idx_224.format
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.1.linear1.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.2.norm1.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.1.linear2.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.2.linear1.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.0.norm1.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.3.linear1.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/decoder.4.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/pr/month_idx_77.sha256
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": val/tas/avg/monthly_rmse
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": val/pr/time_mean_rmse
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.1.norm2.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": val/loss
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.0.self_attn.out_proj.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/decoder.0.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.2.norm1.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/encoder.2.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.2.self_attn.in_proj_bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/tas/month_idx_42.size
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/pr/month_idx_260._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.1.linear1.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/cbam.mlp.0.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.0.norm2.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.1.self_attn.in_proj_bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.1.norm2.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.0.linear2.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.1.norm2.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.1.linear1.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/encoder.0.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.0.norm2.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.3.norm1.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.1.self_attn.out_proj.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/encoder.0.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.3.self_attn.out_proj.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.0.self_attn.in_proj_weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.2.norm1.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.0.linear2.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.2.self_attn.out_proj.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.0.self_attn.out_proj.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.2.linear2.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/tas/time_Stddev._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/pr/month_idx_260.height
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.0.norm2.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/cbam.mlp.2.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.1.norm1.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/pr/time_Stddev._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/decoder.4.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/pr/month_idx_205._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.1.norm2.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.3.self_attn.out_proj.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.3.linear1.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.2.self_attn.out_proj.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/tas/time_mean.path
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.1.linear1.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.2.norm2.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.3.norm2.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/pos_embedding.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/tas/month_idx_224._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/tas/month_idx_285.sha256
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.0.norm1.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.2.linear1.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.2.self_attn.in_proj_bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.1.self_attn.in_proj_bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.3.linear1.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.1.self_attn.out_proj.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.2.linear1.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.2.linear2.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": test/tas/time_stddev_mae
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.3.linear2.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.2.norm2.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.3.norm1.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.2.norm1.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.0.norm1.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.0.norm2.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.2.self_attn.in_proj_weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.0.self_attn.in_proj_weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/pos_embedding.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/pr/time_mean.format
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.2.linear2.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.1.linear1.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.3.linear1.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.0.self_attn.in_proj_weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.1.self_attn.in_proj_bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.0.linear1.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.3.self_attn.in_proj_bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.2.linear2.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.2.self_attn.out_proj.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.1.norm1.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/decoder.0.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.1.norm2.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.2.linear1.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.3.self_attn.out_proj.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.3.self_attn.in_proj_bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.1.self_attn.out_proj.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.3.norm1.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/pr/month_idx_77.path
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.3.self_attn.out_proj.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/decoder.4.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.0.norm2.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.1.self_attn.out_proj.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/encoder.2.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/cbam.conv_spatial.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.0.self_attn.in_proj_bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/decoder.0.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/encoder.2.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/decoder.2.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.1.self_attn.out_proj.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.1.norm2.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/pr/time_mean.width
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.0.linear2.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.2.linear2.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.0.linear1.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.3.linear2.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/pr/time_Stddev.sha256
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": val/pr/time_stddev_mae
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.1.norm1.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.3.self_attn.in_proj_bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/tas/month_idx_285.path
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.1.norm1.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/encoder.2.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.1.self_attn.out_proj.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.0.linear2.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.3.linear2.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/decoder.2.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.0.linear1.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/tas/month_idx_224.sha256
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.0.norm1.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.3.self_attn.out_proj.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/encoder.0.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.2.self_attn.out_proj.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/tas/time_Stddev.height
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/pr/time_Stddev.path
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.0.norm1.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.2.norm1.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/pos_embedding._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/tas/month_idx_42.width
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/tas/month_idx_42.format
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.1.self_attn.out_proj.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/encoder.2.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.2.linear1.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.3.self_attn.in_proj_weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/decoder.0.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/encoder.0.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.2.linear2.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.3.norm2.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/encoder.2.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.3.self_attn.in_proj_weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/decoder.4.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": epoch
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.2.linear1.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.3.self_attn.out_proj.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/decoder.4.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/pr/month_idx_205.format
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.0.self_attn.in_proj_bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/tas/time_Stddev.width
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/decoder.4.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/decoder.2.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/cbam.conv_spatial.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.2.norm2.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/decoder.2.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.1.linear2.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.3.self_attn.in_proj_weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.2.norm2.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/cbam.conv_spatial.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/cbam.mlp.0.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/tas/time_mean.sha256
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.1.linear1.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.1.self_attn.out_proj.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.3.norm2.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.2.linear2.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.2.norm1.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.2.linear1.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/tas/month_idx_42.sha256
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/tas/month_idx_224.path
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/decoder.2.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/cbam.mlp.2.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.3.linear2.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.0.self_attn.in_proj_weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/decoder.0.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.1.self_attn.in_proj_bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.3.linear2.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/pr/month_idx_260.width
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/pr/month_idx_77.height
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/pr/month_idx_77.size
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.2.linear2.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.3.linear2.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.3.linear2.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/decoder.4.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.1.norm1.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.2.self_attn.out_proj.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/cbam.mlp.2.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.0.norm1.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.3.norm1.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.2.norm1.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.0.linear2.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.1.linear1.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/decoder.4.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.1.norm1.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/encoder.2.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/encoder.2.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/pr/time_mean._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.2.self_attn.in_proj_weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.0.norm1.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.0.self_attn.out_proj.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.1.linear2.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.3.norm2.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.2.norm1.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.0.norm1.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.2.linear2.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.2.linear1.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.1.linear1.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/cbam.mlp.0.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.2.norm1.bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.3.linear1.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.1.norm2.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.1.self_attn.out_proj.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/tas/month_idx_285._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.2.self_attn.in_proj_bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.1.linear2.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.3.self_attn.out_proj.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.0.norm2.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.0.self_attn.in_proj_weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.2.linear1.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.0.norm1.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.2.linear2.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.3.norm1.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/decoder.0.bias.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.0.norm2.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.1.self_attn.in_proj_bias._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.1.norm1.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.3.norm1.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.0.norm2.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/tas/month_idx_285.format
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/encoder.0.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.3.norm2.bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/pr/month_idx_260.size
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/cbam.mlp.2.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.3.self_attn.in_proj_bias.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/encoder.2.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/tas/time_mean.height
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": img/tas/month_idx_285.width
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": test/tas/avg/monthly_rmse
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.0.linear1.weight.bins
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.1.linear1.weight.values
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": gradients/transformer.layers.0.linear2.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": parameters/transformer.layers.3.norm2.weight._type
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+        python_version: 3.11.9
+        t:
+            "1":
+                - 1
+                - 5
+                - 11
+                - 41
+                - 49
+                - 50
+                - 53
+                - 54
+                - 55
+                - 71
+                - 106
+            "2":
+                - 1
+                - 5
+                - 11
+                - 41
+                - 49
+                - 50
+                - 53
+                - 54
+                - 55
+                - 71
+                - 106
+            "3":
+                - 1
+                - 2
+                - 7
+                - 23
+                - 55
+                - 62
+                - 66
+            "4": 3.11.9
+            "5": 0.19.11
+            "6": 4.49.0
+            "8":
+                - 2
+                - 5
+            "12": 0.19.11
+            "13": linux-x86_64
+augmentations:
+    value: '{''train'': {''random_flip'': True, ''random_rotate'': True, ''jitter'': [0.01, 0.01, 0.02, 0.01, 0.0]}}'
+batch_size:
+    value: 64
+ckpt_path:
+    value: null
+data:
+    value:
+        augmentations:
+            train:
+                jitter:
+                    - 0.01
+                    - 0.01
+                    - 0.02
+                    - 0.01
+                    - 0
+                random_flip: true
+                random_rotate: true
+        batch_size: 64
+        input_vars:
+            - CO2
+            - SO2
+            - CH4
+            - BC
+            - rsdt
+        num_workers: 4
+        output_vars:
+            - tas
+            - pr
+        path: data/processed.zarr
+        target_member_id: 0
+        test_months: 360
+        test_ssp: ssp245
+        train_ssps:
+            - ssp126
+            - ssp370
+            - ssp585
+eval_batch_size:
+    value: null
+input_vars:
+    value: '[''CO2'', ''SO2'', ''CH4'', ''BC'', ''rsdt'']'
+learning_rate:
+    value: 0.0005
+model:
+    value:
+        depth: 4
+        dropout: 0.1
+        embed_dim: 128
+        mlp_dim: 256
+        n_heads: 4
+        type: cnn_transformer_attention
+num_workers:
+    value: 4
+output_vars:
+    value: '[''tas'', ''pr'']'
+path:
+    value: data/processed.zarr
+run_name:
+    value: null
+seed:
+    value: 42
+target_member_id:
+    value: 0
+test_months:
+    value: 360
+test_ssp:
+    value: ssp245
+train_ssps:
+    value: '[''ssp126'', ''ssp370'', ''ssp585'']'
+trainer:
+    value:
+        accelerator: cuda
+        callbacks:
+            - _target_: lightning.pytorch.callbacks.ModelCheckpoint
+              dirpath: /home/kew025/Physics-Based-Climate-Model/outputs/2025-05-21/23-14-06/checkpoints
+              filename: epoch={epoch:02d}-step={step}
+              mode: min
+              monitor: val/loss
+              save_last: true
+              save_top_k: 1
+            - _target_: lightning.pytorch.callbacks.EarlyStopping
+              min_delta: 0.0001
+              mode: min
+              monitor: val/loss
+              patience: 10
+              verbose: true
+            - _target_: lightning.pytorch.callbacks.LearningRateMonitor
+              logging_interval: epoch
+        deterministic: false
+        devices: 1
+        max_epochs: 100
+        num_sanity_val_steps: 0
+        precision: 16
+training:
+    value:
+        lr: 0.0005
+        optimizer:
+            _target_: torch.optim.AdamW
+            lr: 0.0005
+            weight_decay: 0.0001
+        scheduler:
+            _target_: torch.optim.lr_scheduler.CosineAnnealingWarmRestarts
+            T_0: 100
+            T_mult: 1
+            eta_min: 2.5e-05
+use_wandb:
+    value: true
+wandb_entity:
+    value: jokestar
+wandb_project:
+    value: cse-151b-competition

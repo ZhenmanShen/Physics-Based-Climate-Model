@@ -8,6 +8,7 @@ from .unet_transformer import UNetTransformer
 from .swin_unet import SwinUNet
 from .fno2d import FNO2D
 from .unet_attention_transformer import UNetAttentionTransformer
+from .climate_transformer import ClimateTransformer
 
 
 def get_model(cfg: DictConfig):
@@ -82,6 +83,11 @@ def get_model(cfg: DictConfig):
             vit_layers=cfg.model.vit_layers,
             vit_heads=cfg.model.vit_heads,
             patch_size=cfg.model.patch_size,
+        )
+    elif cfg.model.type == "climate_transformer":
+        return ClimateTransformer(
+            in_channels=len(cfg.data.input_vars),
+            out_channels=len(cfg.data.output_vars),
         )
     else:
         raise ValueError(f"Unknown model type: {cfg.model.type}")

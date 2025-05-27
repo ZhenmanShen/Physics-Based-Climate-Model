@@ -167,6 +167,14 @@ def create_climate_data_array(data, time_coords, lat_coords, lon_coords, var_nam
     if len(data.shape) == 3:
         dims = ("time", "y", "x")
         coords = {"time": time_coords, "y": lat_coords, "x": lon_coords}
+    elif len(data.shape) == 4:
+        dims = ("member", "time", "y", "x")
+        coords = {
+            "member": np.arange(data.shape[0]),  # Create simple member indices if not given
+            "time": time_coords,
+            "y": lat_coords,
+            "x": lon_coords
+        }
     else:  # 2D data
         dims = ("y", "x")
         coords = {"y": lat_coords, "x": lon_coords}
@@ -197,6 +205,7 @@ def calculate_weighted_metric(data_array, weights, dims, metric_type="rmse"):
     """
     # Apply weights and take mean over specified dimensions
     weighted_mean = data_array.weighted(weights).mean(dim=dims).values
+    # weighted_mean = weighted_mean.mean()
 
     # Apply final calculation based on metric type
     if metric_type == "rmse":

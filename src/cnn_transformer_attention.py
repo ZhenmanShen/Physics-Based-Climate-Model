@@ -97,10 +97,12 @@ class CNNTransformerAttention(nn.Module):
         x = self.cbam(x)            # CBAM after encoding
 
         x = x.flatten(2).transpose(1, 2)  # (B, 216, embed_dim)
+  
         x = x + self.pos_embedding       # (B, 216, embed_dim)
 
         x = self.transformer(x)          # (B, 216, embed_dim)
 
         x = x.transpose(1, 2).view(B, self.embed_dim, self.height, self.width)
         x = self.decoder(x)
+
         return x

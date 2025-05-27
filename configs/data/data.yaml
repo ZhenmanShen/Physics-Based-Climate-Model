@@ -14,7 +14,6 @@ output_vars:
   - "pr"
 target_member_id: 0
 
-
 train_ssps: 
   - "ssp126"
   - "ssp370"

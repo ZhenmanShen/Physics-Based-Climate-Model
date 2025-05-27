@@ -2,7 +2,7 @@
 
 defaults:
   - data: data
-  - model: unet_transformer # Must change 
+  - model: climate_transformer # Must change 
   - training: uvit_cosine
   - trainer: uvit_cosine
   - _self_
@@ -11,14 +11,15 @@ defaults:
 seed: 42
 
 # Wandb logging, all arguments are only used if use_wandb is set to true
-use_wandb: false
+use_wandb: true
 wandb_project: "cse-151b-competition"
-wandb_entity: null
+wandb_entity: jokestar
 run_name: null
 
 # Path to a checkpoint to load. If set, will load this checkpoint and resume training (evaluation)
 ckpt_path: null
-
+# ./outputs/2025-05-27/09-22-26/checkpoints/last.ckpt
+# ./outputs/2025-05-27/09-04-20/checkpoints/epoch=epoch=19-step=step=920.ckpt
 hydra:
   job:
     chdir: true

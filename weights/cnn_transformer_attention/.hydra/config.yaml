@@ -1,0 +1,77 @@
+data:
+  path: data/processed.zarr
+  input_vars:
+  - CO2
+  - SO2
+  - CH4
+  - BC
+  - rsdt
+  output_vars:
+  - tas
+  - pr
+  target_member_id: 0
+  train_ssps:
+  - ssp126
+  - ssp370
+  - ssp585
+  test_ssp: ssp245
+  test_months: 360
+  batch_size: 64
+  num_workers: 4
+  augmentations:
+    train:
+      random_flip: true
+      random_rotate: true
+      jitter:
+      - 0.01
+      - 0.01
+      - 0.02
+      - 0.01
+      - 0.0
+model:
+  type: cnn_transformer_attention
+  embed_dim: 128
+  depth: 4
+  n_heads: 4
+  mlp_dim: 256
+  dropout: 0.1
+training:
+  lr: 0.0005
+  optimizer:
+    _target_: torch.optim.AdamW
+    lr: ${training.lr}
+    weight_decay: 0.0001
+  scheduler:
+    _target_: torch.optim.lr_scheduler.CosineAnnealingWarmRestarts
+    T_0: 100
+    T_mult: 1
+    eta_min: 2.5e-05
+trainer:
+  max_epochs: 100
+  accelerator: cuda
+  devices: 1
+  deterministic: false
+  num_sanity_val_steps: 0
+  precision: 16
+  callbacks:
+  - _target_: lightning.pytorch.callbacks.ModelCheckpoint
+    monitor: val/loss
+    save_top_k: 1
+    mode: min
+    save_last: true
+    dirpath: ${hydra:runtime.output_dir}/checkpoints
+    filename: epoch={epoch:02d}-step={step}
+  - _target_: lightning.pytorch.callbacks.EarlyStopping
+    monitor: val/loss
+    mode: min
+    patience: 10
+    min_delta: 0.0001
+    verbose: true
+  - _target_: lightning.pytorch.callbacks.LearningRateMonitor
+    logging_interval: epoch
+seed: 42
+use_wandb: true
+wandb_project: cse-151b-competition
+wandb_entity: jokestar
+run_name: null
+ckpt_path: null
