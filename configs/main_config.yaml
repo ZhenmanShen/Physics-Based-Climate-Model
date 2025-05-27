@@ -2,7 +2,7 @@
 
 defaults:
   - data: default
-  - model: unetpp_pro # Must change 
+  - model: cnn_transformer_attention # Must change 
   - training: default
   - trainer: default
   - _self_

@@ -1,0 +1,6 @@
+# @package _global_.model
+
+type: temporal_unetpp  
+base_ch: 64
+deep_supervision: true
+time_steps: 12         

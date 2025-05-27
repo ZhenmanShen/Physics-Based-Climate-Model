@@ -55,7 +55,7 @@ class SEBlock(nn.Module):
         return x * y
 
 class CNNTransformerAttention(nn.Module):
-    def __init__(self, in_channels=5, out_channels=2, embed_dim=128, depth=4, n_heads=4, mlp_dim=256, dropout=0.1):
+    def __init__(self, in_channels=7, out_channels=2, embed_dim=128, depth=4, n_heads=4, mlp_dim=256, dropout=0.1):
         super().__init__()
 
         self.encoder = nn.Sequential(

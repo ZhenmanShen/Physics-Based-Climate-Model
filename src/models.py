@@ -7,6 +7,7 @@ from .unet_transformer import UNetTransformer
 from .fno_transformer import FNOTransformer
 from .unetpp import UNetPlusPlus
 from .unetpp_pro import UNetPlusPlusPro
+from .unetpp_pro_lstm import TemporalUNetPlusPlus
 
 def get_model(cfg: DictConfig):
     # Create model based on configuration
@@ -39,7 +40,7 @@ def get_model(cfg: DictConfig):
         )
     elif cfg.model.type == "cnn_transformer_attention":
         return CNNTransformerAttention(
-            in_channels=len(cfg.data.input_vars),
+            in_channels=len(cfg.data.input_vars)+2,
             out_channels=len(cfg.data.output_vars),
             embed_dim=cfg.model.embed_dim,
             depth=cfg.model.depth,
@@ -60,6 +61,14 @@ def get_model(cfg: DictConfig):
             trans_mlp=cfg.model.trans_mlp,
             dropout=cfg.model.dropout,
             pool=cfg.model.pool
+        )
+    elif cfg.model.type == "temporal_unetpp":
+        return TemporalUNetPlusPlus(
+            n_input_channels=len(cfg.data.input_vars),
+            n_output_channels=len(cfg.data.output_vars),
+            base_ch=cfg.model.base_ch,
+            deep_supervision=cfg.model.deep_supervision,
+            time_steps=cfg.model.time_steps,
         )
     else:
         raise ValueError(f"Unknown model type: {cfg.model.type}")
