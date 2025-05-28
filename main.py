@@ -186,7 +186,7 @@ class ClimateEmulationDataModule(LightningDataModule):
                     ssp,
                     self.hparams.input_vars,
                     self.hparams.output_vars,
-                    self.hparams.target_member_id,
+                    self.hparams.member_ids,
                     spatial_template_da,
                 )
 
@@ -202,6 +202,18 @@ class ClimateEmulationDataModule(LightningDataModule):
                     # All other SSPs go entirely to training
                     train_inputs_dask_list.append(ssp_input_dask)
                     train_outputs_dask_list.append(ssp_output_dask)
+
+            # ---------- Patch validation to member 0 only ----------
+            # (ssp370-member0 was not loaded yet, so load it once now)
+            v_in, v_out = _load_process_ssp_data(
+                ds, val_ssp,
+                self.hparams.input_vars,
+                self.hparams.output_vars,
+                (0,),                                # ← SINGLE member tuple
+                spatial_template_da,
+            )
+            val_input_dask  = v_in[-val_months:]
+            val_output_dask = v_out[-val_months:]
 
             # Concatenate training data only
             train_input_dask = da.concatenate(train_inputs_dask_list, axis=0)
@@ -230,7 +242,7 @@ class ClimateEmulationDataModule(LightningDataModule):
                 self.hparams.test_ssp,
                 self.hparams.input_vars,
                 self.hparams.output_vars,
-                self.hparams.target_member_id,
+                (0,),
                 spatial_template_da,
             )
 
