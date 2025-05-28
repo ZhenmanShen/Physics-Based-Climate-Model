@@ -12,7 +12,7 @@ input_vars:
 output_vars:
   - "tas"
   - "pr"
-member_ids: [0, 1, 2]
+member_ids: [0, 1, 2] # updated so train on all ensemble members 
 
 train_ssps: 
   - "ssp126"

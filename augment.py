@@ -1,16 +1,9 @@
-# 1. Augment Data Loading for MOre Variability
-# Modified _load_process_ssp_data and ClimateEmulationDataModule to iterate over member_id values (e.g., [0, 1, 2]) and concatenate the results
-
-
-
 import os
 from datetime import datetime
 
 import dask.array as da
 import hydra
 import lightning.pytorch as pl
-import matplotlib
-matplotlib.use("Agg") 
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
@@ -79,7 +72,6 @@ class ClimateDataset(Dataset):
         return self.input_tensors[idx], self.output_tensors[idx]
 
 
-# Updated to return all ensemble members
 def _load_process_ssp_data(
     ds,
     ssp: str,
@@ -131,7 +123,6 @@ def _load_process_ssp_data(
     return stacked_input, stacked_output
 
 
-
 class ClimateEmulationDataModule(LightningDataModule):
     def __init__(
         self,
@@ -140,12 +131,12 @@ class ClimateEmulationDataModule(LightningDataModule):
         output_vars: list,
         train_ssps: list,
         test_ssp: str,
+        member_ids: list[int] = (0,),
         test_months: int = 360,
         batch_size: int = 32,
         eval_batch_size: int = None,
         num_workers: int = 0,
         seed: int = 42,
-        member_ids: list[int] = (0,),
     ):
         super().__init__()
         self.save_hyperparameters()
@@ -166,32 +157,7 @@ class ClimateEmulationDataModule(LightningDataModule):
             raise FileNotFoundError(f"Data path not found: {self.hparams.path}")
         log.info(f"Data found at: {self.hparams.path}")
 
-
-
     def setup(self, stage: str | None = None):
-
-        # Helper function 
-        def normalize_input_dask(dask_array):
-            normed = []
-            for ch, var in enumerate(self.hparams.input_vars):
-                normed_ch = dask_array[:, ch, :, :].map_blocks(
-                    lambda x, v=var: self.normalizer.normalize(x, v, is_input=True),
-                    dtype=np.float32,
-                )
-                normed.append(normed_ch)
-            return da.stack(normed, axis=1)
-
-        def normalize_output_dask(dask_array):
-            normed = []
-            for ch, var in enumerate(self.hparams.output_vars):
-                normed_ch = dask_array[:, ch, :, :].map_blocks(
-                    lambda x, v=var: self.normalizer.normalize(x, v, is_input=False),
-                    dtype=np.float32,
-                )
-                normed.append(normed_ch)
-            return da.stack(normed, axis=1)
-
-
         log.info(f"Setting up data module for stage: {stage} from {self.hparams.path}")
 
         # Use context manager for opening dataset
@@ -236,24 +202,22 @@ class ClimateEmulationDataModule(LightningDataModule):
             train_input_dask = da.concatenate(train_inputs_dask_list, axis=0)
             train_output_dask = da.concatenate(train_outputs_dask_list, axis=0)
 
-            # --- Compute normalization stats per variable ---
-            for ch, var in enumerate(self.hparams.input_vars):
-                arr = train_input_dask[:, ch, :, :].compute()
-                self.normalizer.register_statistics(var, arr, is_input=True)
+            # Compute z-score normalization statistics using the training data
+            input_mean = da.nanmean(train_input_dask, axis=(0, 2, 3), keepdims=True).compute()
+            input_std = da.nanstd(train_input_dask, axis=(0, 2, 3), keepdims=True).compute()
+            output_mean = da.nanmean(train_output_dask, axis=(0, 2, 3), keepdims=True).compute()
+            output_std = da.nanstd(train_output_dask, axis=(0, 2, 3), keepdims=True).compute()
 
-            for ch, var in enumerate(self.hparams.output_vars):
-                arr = train_output_dask[:, ch, :, :].compute()
-                self.normalizer.register_statistics(var, arr, is_input=False)
-
-
+            self.normalizer.set_input_statistics(mean=input_mean, std=input_std)
+            self.normalizer.set_output_statistics(mean=output_mean, std=output_std)
 
             # --- Define Normalized Training Dask Arrays ---
-            train_input_norm_dask = normalize_input_dask(train_input_dask)
-            train_output_norm_dask = normalize_output_dask(train_output_dask)
+            train_input_norm_dask = self.normalizer.normalize(train_input_dask, data_type="input")
+            train_output_norm_dask = self.normalizer.normalize(train_output_dask, data_type="output")
 
             # --- Define Normalized Validation Dask Arrays ---
-            val_input_norm_dask = normalize_input_dask(val_input_dask)
-            val_output_norm_dask = normalize_output_dask(val_output_dask)
+            val_input_norm_dask = self.normalizer.normalize(val_input_dask, data_type="input")
+            val_output_norm_dask = self.normalizer.normalize(val_output_dask, data_type="output")
 
             # --- Prepare Test Data ---
             full_test_input_dask, full_test_output_dask = _load_process_ssp_data(
@@ -272,7 +236,7 @@ class ClimateEmulationDataModule(LightningDataModule):
             sliced_test_output_raw_dask = full_test_output_dask[test_slice]
 
             # --- Define Normalized Test Input Dask Array ---
-            test_input_norm_dask = normalize_input_dask(sliced_test_input_dask)
+            test_input_norm_dask = self.normalizer.normalize(sliced_test_input_dask, data_type="input")
             test_output_raw_dask = sliced_test_output_raw_dask  # Keep unnormed for evaluation
 
         # Create datasets
@@ -373,16 +337,8 @@ class ClimateEmulationModule(pl.LightningModule):
         self.log("val/loss", loss, on_step=False, on_epoch=True, prog_bar=True, batch_size=x.size(0), sync_dist=True)
 
         # Save unnormalized outputs for decadal mean/stddev calculation in validation_epoch_end
-        y_pred_norm = np.stack(
-            [self.normalizer.inverse(y_pred_norm.cpu().numpy()[:, i, :, :], var)
-            for i, var in enumerate(self.trainer.datamodule.hparams.output_vars)],
-            axis=1
-        )#self.normalizer.inverse_transform_output(y_pred_norm.cpu().numpy())
-        y_true_norm = np.stack(
-            [self.normalizer.inverse(y_true_norm.cpu().numpy()[:, i, :, :], var)
-            for i, var in enumerate(self.trainer.datamodule.hparams.output_vars)],
-            axis=1
-        )#self.normalizer.inverse_transform_output(y_true_norm.cpu().numpy())
+        y_pred_norm = self.normalizer.inverse_transform_output(y_pred_norm.cpu().numpy())
+        y_true_norm = self.normalizer.inverse_transform_output(y_true_norm.cpu().numpy())
         self.validation_step_outputs.append((y_pred_norm, y_true_norm))
 
         return loss
@@ -445,8 +401,7 @@ class ClimateEmulationModule(pl.LightningModule):
             time_std_mae = calculate_weighted_metric(std_abs_diff, area_weights, ("y", "x"), "mae")
             self.log(f"{phase}/{var_name}/time_stddev_mae", float(time_std_mae), **log_kwargs)
 
-            # Extra logging of sample predictions/images to wandb for test phase (feel free to use this for validation)
-            # if is_test:
+            
             # Generate visualizations for test phase when using wandb
             if isinstance(self.logger, WandbLogger):
                 # Time mean visualization
@@ -457,7 +412,7 @@ class ClimateEmulationModule(pl.LightningModule):
                     metric_value=time_mean_rmse,
                     metric_name="Weighted RMSE",
                 )
-                self.logger.experiment.log({f"img/{phase}/{var_name}/time_mean": wandb.Image(fig)})
+                self.logger.experiment.log({f"img/{var_name}/time_mean": wandb.Image(fig)})
                 plt.close(fig)
 
                 # Time standard deviation visualization
@@ -469,13 +424,12 @@ class ClimateEmulationModule(pl.LightningModule):
                     metric_name="Weighted MAE",
                     cmap="plasma",
                 )
-                self.logger.experiment.log({f"img/{phase}/{var_name}/time_Stddev": wandb.Image(fig)})
+                self.logger.experiment.log({f"img/{var_name}/time_Stddev": wandb.Image(fig)})
                 plt.close(fig)
 
                 # Sample timesteps visualization
                 if n_timesteps > 3:
-                    # timesteps = np.random.choice(n_timesteps, 3, replace=False)
-                    timesteps = [0, 12, 24, 36, 48, 60, 72, 84, 96, 108]
+                    timesteps = np.random.choice(n_timesteps, 3, replace=False)
                     for t in timesteps:
                         true_t = trues_xr.isel(time=t)
                         pred_t = preds_xr.isel(time=t)
@@ -501,11 +455,7 @@ class ClimateEmulationModule(pl.LightningModule):
         x, y_true_denorm = batch
         y_pred_norm = self(x)
         # Denormalize the predictions for evaluation back to original scale
-        y_pred_denorm = np.stack(
-            [self.normalizer.inverse(y_pred_norm.cpu().numpy()[:, i, :, :], var)
-            for i, var in enumerate(self.trainer.datamodule.hparams.output_vars)],
-            axis=1
-        )#self.normalizer.inverse_transform_output(y_pred_norm.cpu().numpy())
+        y_pred_denorm = self.normalizer.inverse_transform_output(y_pred_norm.cpu().numpy())
         y_true_denorm_np = y_true_denorm.cpu().numpy()
         self.test_step_outputs.append((y_pred_denorm, y_true_denorm_np))
 
@@ -522,73 +472,6 @@ class ClimateEmulationModule(pl.LightningModule):
         self._save_kaggle_submission(all_preds_denorm)
 
         self.test_step_outputs.clear()  # Clear the outputs list
-    
-    def _visualize_highest_loss(self, predictions, targets, losses):
-        # phase = "test" if is_test else "val"
-    
-        # Get number of evaluation timesteps
-        n_timesteps = predictions.shape[0]
-
-        # Get coordinates
-        lat_coords, lon_coords = self.trainer.datamodule.get_coords()
-        time_coords = np.arange(n_timesteps)
-        output_vars = self.trainer.datamodule.hparams.output_vars
-
-        # Process each output variable
-        for i, var_name in enumerate(output_vars):
-            # Extract channel data
-            preds_var = predictions[:, i, :, :]
-            trues_var = targets[:, i, :, :]
-
-            var_unit = "mm/day" if var_name == "pr" else "K" if var_name == "tas" else "unknown"
-
-            # Create xarray objects for weighted calculations
-            preds_xr = create_climate_data_array(
-                preds_var, time_coords, lat_coords, lon_coords, var_name=var_name, var_unit=var_unit
-            )
-            trues_xr = create_climate_data_array(
-                trues_var, time_coords, lat_coords, lon_coords, var_name=var_name, var_unit=var_unit
-            )
-
-            # Generate visualizations for train phase when using wandb
-            # Top 2 (or however many) train samples w/ highest loss
-            if isinstance(self.logger, WandbLogger):
-                topk = 2
-                topk_indices = losses.topk(topk).indices
-                
-                for t in topk_indices:
-                    true_t = trues_xr.isel(time=t)
-                    pred_t = preds_xr.isel(time=t)
-                    fig = create_comparison_plots(true_t, pred_t, title_prefix=f"{var_name} Timestep {t}")
-                    self.logger.experiment.log({f"img/train/{var_name}/month_idx_{t}": wandb.Image(fig)})
-                    plt.close(fig)
-
-    def on_train_end(self):
-        dataloader = self.trainer.datamodule.train_dataloader()
-        self.eval()
-        outputs = []
-        with torch.no_grad():
-            for batch in dataloader:
-                x, y_true = batch
-                y_pred = self(x.to(self.device))
-                loss = self.criterion(y_pred, y_true.to(self.device))
-                y_pred = np.stack(
-                    [self.normalizer.inverse(y_pred.detach().cpu().numpy()[:, i, :, :], var)
-                    for i, var in enumerate(self.trainer.datamodule.hparams.output_vars)],
-                    axis=1
-                )#self.normalizer.inverse_transform_output(y_pred.detach().cpu().numpy())
-                y_true = np.stack(
-                    [self.normalizer.inverse(y_true.detach().cpu().numpy()[:, i, :, :], var)
-                    for i, var in enumerate(self.trainer.datamodule.hparams.output_vars)],
-                    axis=1
-                )#self.normalizer.inverse_transform_output(y_true.detach().cpu().numpy())
-                outputs.append((y_pred, y_true, loss.detach().cpu().item()))
-
-        all_preds_denorm = np.concatenate([pred for pred, true, loss in outputs], axis=0)
-        all_trues_denorm = np.concatenate([true for pred, true, loss in outputs], axis=0)
-        all_losses = torch.tensor([loss for pred, true, loss in outputs])
-
-        self._visualize_highest_loss(all_preds_denorm, all_trues_denorm, all_losses)
 
     def _save_kaggle_submission(self, predictions, suffix=""):
         """
@@ -617,7 +500,7 @@ class ClimateEmulationModule(pl.LightningModule):
         if wandb is not None and isinstance(self.logger, WandbLogger):
             pass
             # Optionally, uncomment the following line to save the submission to the wandb cloud
-            self.logger.experiment.log_artifact(filepath)  # Log to wandb if available
+            # self.logger.experiment.log_artifact(filepath)  # Log to wandb if available
 
         log.info(f"Kaggle submission saved to {filepath}")
 
@@ -638,11 +521,6 @@ def main(cfg: DictConfig):
     # Create data module with parameters from configs
     datamodule = ClimateEmulationDataModule(seed=cfg.seed, **cfg.data)
     model = get_model(cfg)
-    datamodule = ClimateEmulationDataModule(seed=cfg.seed, **cfg.data)
-    datamodule.normalizer = Normalizer(
-        input_methods=cfg.normalization.input_transforms,
-        output_methods=cfg.normalization.output_transforms
-    )
 
     # Create lightning module
     lightning_module = ClimateEmulationModule(model, learning_rate=cfg.training.lr)
