@@ -41,36 +41,42 @@ log = get_logger(__name__)
 
 # --- Data Handling ---
 
+def create_time_encoding(month_idx, H=48, W=72, device="cpu"):
+    import math
+    angle = 2 * math.pi * month_idx / 12.0
+    sin_val = math.sin(angle)
+    cos_val = math.cos(angle)
+
+    sin_channel = torch.full((1, H, W), sin_val, device=device)
+    cos_channel = torch.full((1, H, W), cos_val, device=device)
+    return torch.cat([sin_channel, cos_channel], dim=0)
 
 # Dataset to precompute all tensors during initialization
 class ClimateDataset(Dataset):
-    def __init__(self, inputs_norm_dask, outputs_dask, output_is_normalized=True):
-        # Store dataset size
-        self.size = inputs_norm_dask.shape[0]
-
-        # Log once with basic information
-        log.info(
-            f"Creating dataset: {self.size} samples, input shape: {inputs_norm_dask.shape}, normalized output: {output_is_normalized}"
-        )
-
-        # Precompute all tensors in one go
-        inputs_np = inputs_norm_dask.compute()
-        outputs_np = outputs_dask.compute()
-
-        # Convert to PyTorch tensors
-        self.input_tensors = torch.from_numpy(inputs_np).float()
-        self.output_tensors = torch.from_numpy(outputs_np).float()
-
-        # Handle NaN values (should not occur)
-        if torch.isnan(self.input_tensors).any() or torch.isnan(self.output_tensors).any():
-            raise ValueError("NaN values detected in dataset tensors")
+    def __init__(self, input: da.Array, output: da.Array, months: list[int], output_is_normalized: bool = True):
+        assert input.shape[0] == output.shape[0] == len(months)
+        self.input = input
+        self.output = output
+        self.months = months
+        self.output_is_normalized = output_is_normalized
+        self.size = len(months)
 
     def __len__(self):
         return self.size
 
     def __getitem__(self, idx):
-        return self.input_tensors[idx], self.output_tensors[idx]
+        input_np = self.input[idx].compute()
+        output_np = self.output[idx].compute()
+        month = self.months[idx]
 
+        input_tensor = torch.from_numpy(input_np).float()
+        output_tensor = torch.from_numpy(output_np).float()
+
+        #~ Add time encoding (2 channels) using sin/cos of month
+        time_tensor = create_time_encoding(month_idx=month, H=input_tensor.shape[1], W=input_tensor.shape[2], device=input_tensor.device)
+        input_tensor = torch.cat([input_tensor, time_tensor], dim=0)
+
+        return input_tensor, output_tensor
 
 def _load_process_ssp_data(
     ds,
@@ -251,10 +257,15 @@ class ClimateEmulationDataModule(LightningDataModule):
             test_input_norm_dask = self.normalizer.normalize(sliced_test_input_dask, data_type="input")
             test_output_raw_dask = sliced_test_output_raw_dask  # Keep unnormed for evaluation
 
+            train_months_list = list(range(train_input_norm_dask.shape[0]))
+            val_months_list = list(range(val_input_norm_dask.shape[0]))
+            test_months = list(range(test_input_norm_dask.shape[0]))
+
         # Create datasets
-        self.train_dataset = ClimateDataset(train_input_norm_dask, train_output_norm_dask, output_is_normalized=True)
-        self.val_dataset = ClimateDataset(val_input_norm_dask, val_output_norm_dask, output_is_normalized=True)
-        self.test_dataset = ClimateDataset(test_input_norm_dask, test_output_raw_dask, output_is_normalized=False)
+        self.train_dataset = ClimateDataset(train_input_norm_dask, train_output_norm_dask, train_months_list, output_is_normalized=True)
+        self.val_dataset = ClimateDataset(val_input_norm_dask, val_output_norm_dask, val_months_list, output_is_normalized=True)
+        self.test_dataset = ClimateDataset(test_input_norm_dask, test_output_raw_dask, test_months, output_is_normalized=True)
+
 
         # Log dataset sizes in a single message
         log.info(
