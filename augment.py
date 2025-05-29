@@ -131,7 +131,7 @@ class ClimateEmulationDataModule(LightningDataModule):
         output_vars: list,
         train_ssps: list,
         test_ssp: str,
-        member_ids: list[int] = (0,),
+        member_ids: list,
         test_months: int = 360,
         batch_size: int = 32,
         eval_batch_size: int = None,
@@ -170,7 +170,7 @@ class ClimateEmulationDataModule(LightningDataModule):
             train_inputs_dask_list, train_outputs_dask_list = [], []
             val_input_dask, val_output_dask = None, None
             val_ssp = "ssp370"
-            val_months = 120
+            val_months = 1080 # <- Change this to change the validation size
 
             # Process all SSPs
             log.info(f"Loading data from SSPs: {self.hparams.train_ssps}")
@@ -204,7 +204,7 @@ class ClimateEmulationDataModule(LightningDataModule):
                 ds, val_ssp,
                 self.hparams.input_vars,
                 self.hparams.output_vars,
-                (0,),                                # ← SINGLE member tuple
+                (2,),                                # ← SINGLE member tuple
                 spatial_template_da,
             )
             val_input_dask  = v_in[-val_months:]
