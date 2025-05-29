@@ -1,0 +1,15 @@
+type: precip_enhanced_model
+
+embed_dim: 128
+
+# Number of transformer layers
+depth: 4
+
+# Number of attention heads in transformer
+n_heads: 4
+
+# Size of feedforward network in transformer
+mlp_dim: 256
+
+# Dropout in transformer layers
+dropout: 0.1

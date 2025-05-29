@@ -1,6 +1,7 @@
 import logging
 from typing import Any, Dict
 
+import dask.array as da
 import hydra
 import matplotlib.pyplot as plt
 import numpy as np
@@ -108,6 +109,178 @@ class Normalizer:
         denormalized = data_norm * self.std_out + self.mean_out
         return denormalized
 
+class AdvancedNormalizer:
+    def __init__(self, input_vars, output_vars):
+        self.input_vars = input_vars
+        self.output_vars = output_vars
+        self.input_stats = {}
+        self.output_stats = {}
+    
+    def fit(self, input_dask, output_dask):
+        """Compute per-variable normalization statistics using Dask"""
+        # Compute statistics for each input variable
+        for i, var in enumerate(self.input_vars):
+            var_data = input_dask[:, i, :, :]
+            
+            if var in ['SO2', 'BC']:
+                # Sparse pollutants: log-normal for non-zero values
+                # Compute statistics only for non-zero values
+                non_zero_mask = (var_data > 1e-6)
+                non_zero_count = da.sum(non_zero_mask).compute()
+                
+                if non_zero_count > 0:
+                    non_zero_data = var_data[non_zero_mask]
+                    log_mean = da.nanmean(da.log1p(non_zero_data)).compute()
+                    log_std = da.nanstd(da.log1p(non_zero_data)).compute()
+                else:
+                    log_mean, log_std = 0.0, 1.0  # Defaults if no non-zero values
+                
+                self.input_stats[var] = {
+                    'type': 'sparse',
+                    'log_mean': log_mean,
+                    'log_std': log_std
+                }
+            
+            elif var == 'CO2':
+                # Cube root transform for skewed distribution
+                cube_root = da.sign(var_data) * da.power(da.abs(var_data), 1/3)
+                mean = da.nanmean(cube_root).compute()
+                std = da.nanstd(cube_root).compute()
+                
+                self.input_stats[var] = {
+                    'type': 'skewed',
+                    'transform': 'cube_root',
+                    'mean': mean,
+                    'std': std
+                }
+            
+            elif var == 'rsdt':
+                # Bimodal handling - compute statistics for values above threshold
+                normal_mask = (var_data >= 50)
+                normal_count = da.sum(normal_mask).compute()
+                
+                if normal_count > 0:
+                    normal_data = var_data[normal_mask]
+                    normal_mean = da.nanmean(normal_data).compute()
+                    normal_std = da.nanstd(normal_data).compute()
+                else:
+                    normal_mean, normal_std = 300.0, 50.0  # Reasonable defaults
+                
+                self.input_stats[var] = {
+                    'type': 'bimodal',
+                    'threshold': 50,
+                    'normal_mean': normal_mean,
+                    'normal_std': normal_std
+                }
+            
+            else:  # CH4 and others
+                # Use robust statistics that Dask can compute efficiently
+                mean = da.nanmean(var_data).compute()
+                std = da.nanstd(var_data).compute()
+                min_val = da.nanmin(var_data).compute()
+                max_val = da.nanmax(var_data).compute()
+                
+                self.input_stats[var] = {
+                    'type': 'standard',
+                    'mean': mean,
+                    'std': std,
+                    'min': min_val,
+                    'max': max_val
+                }
+        
+        # Compute statistics for output variables
+        for i, var in enumerate(self.output_vars):
+            var_data = output_dask[:, i, :, :]
+            
+            # For outputs, use standard normalization that Dask can handle
+            mean = da.nanmean(var_data).compute()
+            std = da.nanstd(var_data).compute()
+            
+            if var == 'pr':
+                # Additional precipitation-specific stats
+                min_val = da.nanmin(var_data).compute()
+                self.output_stats[var] = {
+                    'type': 'log_standard',
+                    'mean': mean,
+                    'std': std,
+                    'min': min_val
+                }
+            else:
+                self.output_stats[var] = {
+                    'type': 'standard',
+                    'mean': mean,
+                    'std': std
+                }
+    
+    def normalize_input(self, input_dask):
+        """Normalize input data per variable"""
+        normalized_channels = []
+        for i, var in enumerate(self.input_vars):
+            var_data = input_dask[:, i, :, :]
+            stats = self.input_stats[var]
+            
+            if stats['type'] == 'sparse':
+                # Apply log transform to non-zero values
+                log_data = da.log1p(var_data)
+                normalized = da.where(
+                    var_data > 1e-6,
+                    (log_data - stats['log_mean']) / stats['log_std'],
+                    0.0
+                )
+            
+            elif stats['type'] == 'skewed':
+                cube_root = da.sign(var_data) * da.power(da.abs(var_data), 1/3)
+                normalized = (cube_root - stats['mean']) / stats['std']
+            
+            elif stats['type'] == 'bimodal':
+                # Separate handling for polar regions
+                normalized = da.where(
+                    var_data < stats['threshold'],
+                    var_data / stats['threshold'],  # Scale to [0,1]
+                    (var_data - stats['normal_mean']) / stats['normal_std']
+                )
+            
+            else:  # Standard z-score
+                normalized = (var_data - stats['mean']) / stats['std']
+            
+            normalized_channels.append(normalized)
+        
+        return da.stack(normalized_channels, axis=1)
+    
+    def normalize_output(self, output_dask):
+        """Normalize output data per variable"""
+        normalized_channels = []
+        for i, var in enumerate(self.output_vars):
+            var_data = output_dask[:, i, :, :]
+            stats = self.output_stats[var]
+            
+            if stats['type'] == 'log_standard':
+                # Log transform for precipitation
+                log_data = da.log1p(var_data - stats['min'])
+                normalized = (log_data - stats['mean']) / stats['std']
+            else:
+                normalized = (var_data - stats['mean']) / stats['std']
+            
+            normalized_channels.append(normalized)
+        
+        return da.stack(normalized_channels, axis=1)
+    
+    def denormalize_output(self, output_norm_dask):
+        """Convert normalized output back to physical units"""
+        denormalized_channels = []
+        for i, var in enumerate(self.output_vars):
+            var_data = output_norm_dask[:, i, :, :]
+            stats = self.output_stats[var]
+            
+            if stats['type'] == 'log_standard':
+                log_data = var_data * stats['std'] + stats['mean']
+                denormalized = da.expm1(log_data) + stats['min']
+            else:
+                denormalized = var_data * stats['std'] + stats['mean']
+            
+            denormalized_channels.append(denormalized)
+        
+        return da.stack(denormalized_channels, axis=1)
 
 def get_trainer_config(cfg: DictConfig, model=None) -> Dict[str, Any]:
     # Setup logger
@@ -250,9 +423,16 @@ def create_comparison_plots(
     colorbar_kwargs = colorbar_kwargs or DEFAULT_VIZ_PARAMS["colorbar_kwargs"]
     fig, axes = plt.subplots(1, 3, figsize=fig_size)
 
+    true_data_np = true_data.values
+    pred_data_np = pred_data.values
+
     # Find global min/max for consistent color scaling
-    vmin = min(true_data.min().item(), pred_data.min().item())
-    vmax = max(true_data.max().item(), pred_data.max().item())
+    vmin = min(np.nanmin(true_data_np), np.nanmin(pred_data_np))
+    vmax = max(np.nanmax(true_data_np), np.nanmax(pred_data_np))
+    
+    # # Find global min/max for consistent color scaling
+    # vmin = min(true_data.min().item(), pred_data.min().item())
+    # vmax = max(true_data.max().item(), pred_data.max().item())
 
     # Common plotting parameters
     plot_params = {"vmin": vmin, "vmax": vmax, "add_colorbar": True, "cbar_kwargs": colorbar_kwargs}
@@ -265,9 +445,13 @@ def create_comparison_plots(
     pred_data.plot(ax=axes[1], cmap=cmap, **plot_params)
     axes[1].set_title(f"{title_prefix} (Prediction)")
 
+    # # Plot difference
+    # diff = pred_data - true_data
+    # diff_max = max(abs(diff.min().item()), abs(diff.max().item()))
     # Plot difference
     diff = pred_data - true_data
-    diff_max = max(abs(diff.min().item()), abs(diff.max().item()))
+    diff_np = pred_data_np - true_data_np
+    diff_max = max(abs(np.nanmin(diff_np)), abs(np.nanmax(diff_np)))
 
     # Override min/max for difference plot to be centered at zero
     diff_plot_params = plot_params.copy()

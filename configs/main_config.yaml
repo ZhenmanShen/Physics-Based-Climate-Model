@@ -2,7 +2,7 @@
 
 defaults:
   - data: data
-  - model: cnn_transformer_attention # Must change 
+  - model: precip_enhanced_model # Must change 
   - training: default
   - trainer: default
   - _self_
@@ -19,6 +19,8 @@ run_name: null
 
 # Path to a checkpoint to load. If set, will load this checkpoint and resume training (evaluation)
 ckpt_path: null
+# ./outputs/2025-05-28/22-36-10/checkpoints/epoch=epoch=49-step=step=7100.ckpt
+
 
 hydra:
   job:

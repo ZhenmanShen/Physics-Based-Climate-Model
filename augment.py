@@ -25,6 +25,7 @@ except ImportError:
 from src.models import get_model
 from src.utils import (
     Normalizer,
+    AdvancedNormalizer,
     calculate_weighted_metric,
     convert_predictions_to_kaggle_format,
     create_climate_data_array,
@@ -141,7 +142,11 @@ class ClimateEmulationDataModule(LightningDataModule):
         super().__init__()
         self.save_hyperparameters()
         self.hparams.path = to_absolute_path(path)
-        self.normalizer = Normalizer()
+        # self.normalizer = Normalizer()
+        self.normalizer = AdvancedNormalizer(
+            input_vars=self.hparams.input_vars,
+            output_vars=self.hparams.output_vars
+        )
         self.hparams.member_ids = list(member_ids)
 
         # Set evaluation batch size to training batch size if not specified
@@ -198,38 +203,18 @@ class ClimateEmulationDataModule(LightningDataModule):
                     train_inputs_dask_list.append(ssp_input_dask)
                     train_outputs_dask_list.append(ssp_output_dask)
 
-            # ---------- Patch validation to member 0 only ----------
-            # (ssp370-member0 was not loaded yet, so load it once now)
-            v_in, v_out = _load_process_ssp_data(
-                ds, val_ssp,
-                self.hparams.input_vars,
-                self.hparams.output_vars,
-                (0,),                                # ← SINGLE member tuple
-                spatial_template_da,
-            )
-            val_input_dask  = v_in[-val_months:]
-            val_output_dask = v_out[-val_months:]
-
             # Concatenate training data only
             train_input_dask = da.concatenate(train_inputs_dask_list, axis=0)
             train_output_dask = da.concatenate(train_outputs_dask_list, axis=0)
 
-            # Compute z-score normalization statistics using the training data
-            input_mean = da.nanmean(train_input_dask, axis=(0, 2, 3), keepdims=True).compute()
-            input_std = da.nanstd(train_input_dask, axis=(0, 2, 3), keepdims=True).compute()
-            output_mean = da.nanmean(train_output_dask, axis=(0, 2, 3), keepdims=True).compute()
-            output_std = da.nanstd(train_output_dask, axis=(0, 2, 3), keepdims=True).compute()
-
-            self.normalizer.set_input_statistics(mean=input_mean, std=input_std)
-            self.normalizer.set_output_statistics(mean=output_mean, std=output_std)
-
+            self.normalizer.fit(train_input_dask, train_output_dask)
             # --- Define Normalized Training Dask Arrays ---
-            train_input_norm_dask = self.normalizer.normalize(train_input_dask, data_type="input")
-            train_output_norm_dask = self.normalizer.normalize(train_output_dask, data_type="output")
-
+            train_input_norm_dask = self.normalizer.normalize_input(train_input_dask)
+            train_output_norm_dask = self.normalizer.normalize_output(train_output_dask)
+            
             # --- Define Normalized Validation Dask Arrays ---
-            val_input_norm_dask = self.normalizer.normalize(val_input_dask, data_type="input")
-            val_output_norm_dask = self.normalizer.normalize(val_output_dask, data_type="output")
+            val_input_norm_dask = self.normalizer.normalize_input(val_input_dask)
+            val_output_norm_dask = self.normalizer.normalize_output(val_output_dask)
 
             # --- Prepare Test Data ---
             full_test_input_dask, full_test_output_dask = _load_process_ssp_data(
@@ -237,7 +222,7 @@ class ClimateEmulationDataModule(LightningDataModule):
                 self.hparams.test_ssp,
                 self.hparams.input_vars,
                 self.hparams.output_vars,
-                (0,),
+                self.hparams.member_ids,
                 spatial_template_da,
             )
 
@@ -248,8 +233,48 @@ class ClimateEmulationDataModule(LightningDataModule):
             sliced_test_output_raw_dask = full_test_output_dask[test_slice]
 
             # --- Define Normalized Test Input Dask Array ---
-            test_input_norm_dask = self.normalizer.normalize(sliced_test_input_dask, data_type="input")
+            test_input_norm_dask = self.normalizer.normalize_input(sliced_test_input_dask)
             test_output_raw_dask = sliced_test_output_raw_dask  # Keep unnormed for evaluation
+            
+            # # < ----------------------------------------------------------------- >
+            # # Compute z-score normalization statistics using the training data
+            # input_mean = da.nanmean(train_input_dask, axis=(0, 2, 3), keepdims=True).compute()
+            # input_std = da.nanstd(train_input_dask, axis=(0, 2, 3), keepdims=True).compute()
+            # output_mean = da.nanmean(train_output_dask, axis=(0, 2, 3), keepdims=True).compute()
+            # output_std = da.nanstd(train_output_dask, axis=(0, 2, 3), keepdims=True).compute()
+
+            # self.normalizer.set_input_statistics(mean=input_mean, std=input_std)
+            # self.normalizer.set_output_statistics(mean=output_mean, std=output_std)
+
+            # # --- Define Normalized Training Dask Arrays ---
+            # train_input_norm_dask = self.normalizer.normalize(train_input_dask, data_type="input")
+            # train_output_norm_dask = self.normalizer.normalize(train_output_dask, data_type="output")
+
+            # # --- Define Normalized Validation Dask Arrays ---
+            # val_input_norm_dask = self.normalizer.normalize(val_input_dask, data_type="input")
+            # val_output_norm_dask = self.normalizer.normalize(val_output_dask, data_type="output")
+
+            # # --- Prepare Test Data ---
+            # full_test_input_dask, full_test_output_dask = _load_process_ssp_data(
+            #     ds,
+            #     self.hparams.test_ssp,
+            #     self.hparams.input_vars,
+            #     self.hparams.output_vars,
+            #     self.hparams.member_ids,
+            #     spatial_template_da,
+            # )
+
+            # # --- Slice Test Data ---
+            # test_slice = slice(-self.hparams.test_months, None)  # Last N months
+
+            # sliced_test_input_dask = full_test_input_dask[test_slice]
+            # sliced_test_output_raw_dask = full_test_output_dask[test_slice]
+
+            # # --- Define Normalized Test Input Dask Array ---
+            # test_input_norm_dask = self.normalizer.normalize(sliced_test_input_dask, data_type="input")
+            # test_output_raw_dask = sliced_test_output_raw_dask  # Keep unnormed for evaluation
+
+            # # < ----------------------------------------------------------------- >
 
         # Create datasets
         self.train_dataset = ClimateDataset(train_input_norm_dask, train_output_norm_dask, output_is_normalized=True)
@@ -349,8 +374,10 @@ class ClimateEmulationModule(pl.LightningModule):
         self.log("val/loss", loss, on_step=False, on_epoch=True, prog_bar=True, batch_size=x.size(0), sync_dist=True)
 
         # Save unnormalized outputs for decadal mean/stddev calculation in validation_epoch_end
-        y_pred_norm = self.normalizer.inverse_transform_output(y_pred_norm.cpu().numpy())
-        y_true_norm = self.normalizer.inverse_transform_output(y_true_norm.cpu().numpy())
+        # y_pred_norm = self.normalizer.inverse_transform_output(y_pred_norm.cpu().numpy())
+        # y_true_norm = self.normalizer.inverse_transform_output(y_true_norm.cpu().numpy())
+        y_pred_norm = self.normalizer.denormalize_output(y_pred_norm.cpu().numpy())
+        y_true_norm = self.normalizer.denormalize_output(y_true_norm.cpu().numpy())
         self.validation_step_outputs.append((y_pred_norm, y_true_norm))
 
         return loss
@@ -469,7 +496,8 @@ class ClimateEmulationModule(pl.LightningModule):
         x, y_true_denorm = batch
         y_pred_norm = self(x)
         # Denormalize the predictions for evaluation back to original scale
-        y_pred_denorm = self.normalizer.inverse_transform_output(y_pred_norm.cpu().numpy())
+        # y_pred_denorm = self.normalizer.inverse_transform_output(y_pred_norm.cpu().numpy())
+        y_pred_denorm = self.normalizer.denormalize_output(y_pred_norm.cpu().numpy())
         y_true_denorm_np = y_true_denorm.cpu().numpy()
         self.test_step_outputs.append((y_pred_denorm, y_true_denorm_np))
 
@@ -483,7 +511,11 @@ class ClimateEmulationModule(pl.LightningModule):
 
         # Save predictions for Kaggle submission. This is the file that should be uploaded to Kaggle.
         log.info("Saving Kaggle submission...")
+ 
+        all_preds_denorm = all_preds_denorm.compute()
         self._save_kaggle_submission(all_preds_denorm)
+        
+        self.test_step_outputs.clear()  # Clear the outputs list
     
     def _visualize_highest_loss(self, predictions, targets, losses):
         # Get number of evaluation timesteps
@@ -535,9 +567,10 @@ class ClimateEmulationModule(pl.LightningModule):
                 x, y_true = batch
                 y_pred = self(x.to(self.device))
                 loss = self.criterion(y_pred, y_true.to(self.device))
-                # loss = self.customloss(y_pred, y_true.to(self.device))
-                y_pred = self.normalizer.inverse_transform_output(y_pred.detach().cpu().numpy())
-                y_true = self.normalizer.inverse_transform_output(y_true.detach().cpu().numpy())
+                # y_pred = self.normalizer.inverse_transform_output(y_pred.detach().cpu().numpy())
+                # y_true = self.normalizer.inverse_transform_output(y_true.detach().cpu().numpy())
+                y_pred = self.normalizer.denormalize_output(y_pred.detach().cpu().numpy())
+                y_true = self.normalizer.denormalize_output(y_true.detach().cpu().numpy())
                 outputs.append((y_pred, y_true, loss.detach().cpu().item()))
 
         all_preds_denorm = np.concatenate([pred for pred, true, loss in outputs], axis=0)
@@ -545,8 +578,6 @@ class ClimateEmulationModule(pl.LightningModule):
         all_losses = torch.tensor([loss for pred, true, loss in outputs])
 
         self._visualize_highest_loss(all_preds_denorm, all_trues_denorm, all_losses)
-
-        self.test_step_outputs.clear()  # Clear the outputs list
 
     def _save_kaggle_submission(self, predictions, suffix=""):
         """
@@ -573,9 +604,7 @@ class ClimateEmulationModule(pl.LightningModule):
         submission_df.to_csv(filepath, index=False)
 
         if wandb is not None and isinstance(self.logger, WandbLogger):
-            pass
-            # Optionally, uncomment the following line to save the submission to the wandb cloud
-            # self.logger.experiment.log_artifact(filepath)  # Log to wandb if available
+            self.logger.experiment.log_artifact(filepath)  # Log to wandb if available
 
         log.info(f"Kaggle submission saved to {filepath}")
 

@@ -7,6 +7,7 @@ from .unet_transformer import UNetTransformer
 from .fno_transformer import FNOTransformer
 from .unetpp import UNetPlusPlus
 from .unetpp_pro import UNetPlusPlusPro
+from .precip_enhanced_model import PrecipitationEnhancedModel
 
 def get_model(cfg: DictConfig):
     # Create model based on configuration
@@ -60,6 +61,16 @@ def get_model(cfg: DictConfig):
             trans_mlp=cfg.model.trans_mlp,
             dropout=cfg.model.dropout,
             pool=cfg.model.pool
+        )
+    elif cfg.model.type == "precip_enhanced_model":
+        return PrecipitationEnhancedModel(
+            in_channels=len(cfg.data.input_vars),
+            out_channels=len(cfg.data.output_vars),
+            embed_dim=cfg.model.embed_dim,
+            depth=cfg.model.depth,
+            n_heads=cfg.model.n_heads,
+            mlp_dim=cfg.model.mlp_dim,
+            dropout=cfg.model.dropout
         )
     else:
         raise ValueError(f"Unknown model type: {cfg.model.type}")
