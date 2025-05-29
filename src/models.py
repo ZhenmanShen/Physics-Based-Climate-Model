@@ -7,6 +7,7 @@ from .unet_transformer import UNetTransformer
 from .fno_transformer import FNOTransformer
 from .unetpp import UNetPlusPlus
 from .unetpp_pro import UNetPlusPlusPro
+from .light_unet import LightUNet
 
 def get_model(cfg: DictConfig):
     # Create model based on configuration
@@ -22,6 +23,17 @@ def get_model(cfg: DictConfig):
             n_heads=cfg.model.n_heads,
             mlp_dim=cfg.model.mlp_dim,
             dropout=cfg.model.dropout
+        )
+    elif cfg.model.type == "light_unet":
+        # LightUNet expects: n_input_channels, n_output_channels, base_channels, depth, bilinear
+        # These should align with the keys in model_kwargs (derived from light_unet.yaml)
+        # or be explicitly passed if names differ.
+        return LightUNet(
+            n_input_channels=model_kwargs["n_input_channels"],
+            n_output_channels=model_kwargs["n_output_channels"],
+            base_channels=model_kwargs.get("base_channels", 32), # Default if not in yaml
+            depth=model_kwargs.get("depth", 3),                   # Default if not in yaml
+            bilinear=model_kwargs.get("bilinear", True)           # Default if not in yaml
         )
     elif cfg.model.type == "unetpp":            
         return UNetPlusPlus(
