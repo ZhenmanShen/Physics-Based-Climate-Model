@@ -5,9 +5,7 @@ from .cnn_transformer import CNNTransformer
 from  .cnn_transformer_attention import CNNTransformerAttention
 from .unet_transformer import UNetTransformer
 from .fno_transformer import FNOTransformer
-from .unetpp import UNetPlusPlus
-from .unetpp_pro import UNetPlusPlusPro
-from .light_unet import LightUNet
+from .unet import UNet
 
 def get_model(cfg: DictConfig):
     # Create model based on configuration
@@ -24,31 +22,14 @@ def get_model(cfg: DictConfig):
             mlp_dim=cfg.model.mlp_dim,
             dropout=cfg.model.dropout
         )
-    elif cfg.model.type == "light_unet":
-        # LightUNet expects: n_input_channels, n_output_channels, base_channels, depth, bilinear
-        # These should align with the keys in model_kwargs (derived from light_unet.yaml)
-        # or be explicitly passed if names differ.
-        return LightUNet(
-            n_input_channels=model_kwargs["n_input_channels"],
-            n_output_channels=model_kwargs["n_output_channels"],
-            base_channels=model_kwargs.get("base_channels", 32), # Default if not in yaml
-            depth=model_kwargs.get("depth", 3),                   # Default if not in yaml
-            bilinear=model_kwargs.get("bilinear", True)           # Default if not in yaml
-        )
-    elif cfg.model.type == "unetpp":            
-        return UNetPlusPlus(
+    elif cfg.model.type == "unet":
+        return UNet(
             n_input_channels=len(cfg.data.input_vars),
             n_output_channels=len(cfg.data.output_vars),
-            base_ch=cfg.model.base_ch,
-            deep_supervision=cfg.model.deep_supervision,
-        )
-    elif cfg.model.type == "unetpp_pro":         
-        return UNetPlusPlusPro(
-            n_input_channels=len(cfg.data.input_vars),
-            n_output_channels=len(cfg.data.output_vars),
-            base_ch=cfg.model.base_ch,
-            deep_supervision=cfg.model.deep_supervision,
-        )
+            base_channels=cfg.model.base_channels,
+            depth=cfg.model.depth,
+            convlstm_hidden=cfg.model.convlstm_hidden if cfg.data.seq_len > 1 else 0,
+    )
     elif cfg.model.type == "cnn_transformer_attention":
         return CNNTransformerAttention(
             in_channels=len(cfg.data.input_vars),

@@ -21,6 +21,7 @@ train_ssps:
 
 test_ssp: "ssp245"
 test_months: 360
+seq_len: 4
 
 batch_size: 64 # Nvidia GPU has headroom, CHANGE to 32 if not using Nvidia GPU
 num_workers: 4

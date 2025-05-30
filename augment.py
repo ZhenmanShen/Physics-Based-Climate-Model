@@ -15,6 +15,7 @@ from lightning.pytorch import LightningDataModule
 from lightning.pytorch.loggers import WandbLogger
 from omegaconf import DictConfig, OmegaConf
 from torch.utils.data import DataLoader, Dataset
+from src.sequence_dataset import ClimateSequenceDataset
 
 
 try:
@@ -132,6 +133,7 @@ class ClimateEmulationDataModule(LightningDataModule):
         train_ssps: list,
         test_ssp: str,
         member_ids: list,
+        seq_len: int,
         test_months: int = 360,
         batch_size: int = 32,
         eval_batch_size: int = None,
@@ -252,9 +254,16 @@ class ClimateEmulationDataModule(LightningDataModule):
             test_output_raw_dask = sliced_test_output_raw_dask  # Keep unnormed for evaluation
 
         # Create datasets
-        self.train_dataset = ClimateDataset(train_input_norm_dask, train_output_norm_dask, output_is_normalized=True)
-        self.val_dataset = ClimateDataset(val_input_norm_dask, val_output_norm_dask, output_is_normalized=True)
-        self.test_dataset = ClimateDataset(test_input_norm_dask, test_output_raw_dask, output_is_normalized=False)
+        #ClimateDataset(train_input_norm_dask, train_output_norm_dask, output_is_normalized=True)
+        #self.val_dataset = ClimateDataset(val_input_norm_dask, val_output_norm_dask, output_is_normalized=True)
+        #self.test_dataset = ClimateDataset(test_input_norm_dask, test_output_raw_dask, output_is_normalized=False)
+
+        #Edited
+        DS = ClimateDataset if self.hparams.seq_len == 1 else ClimateSequenceDataset
+        self.train_dataset = DS(train_input_norm_dask, train_output_norm_dask, seq_len=self.hparams.seq_len)
+        self.val_dataset   = DS(val_input_norm_dask,   val_output_norm_dask,   seq_len=self.hparams.seq_len)
+        # keep single-month targets for Kaggle metrics
+        self.test_dataset  = ClimateDataset(test_input_norm_dask, test_output_raw_dask, output_is_normalized=False)
 
         # Log dataset sizes in a single message
         log.info(
@@ -318,7 +327,7 @@ class ClimateEmulationDataModule(LightningDataModule):
 
 # --- PyTorch Lightning Module ---
 class ClimateEmulationModule(pl.LightningModule):
-    def __init__(self, model: nn.Module, learning_rate: float):
+    def __init__(self, model: nn.Module, learning_rate: float, weight_decay: float):
         super().__init__()
         self.model = model
         # Access hyperparams via self.hparams object after saving, e.g., self.hparams.learning_rate
@@ -580,7 +589,11 @@ class ClimateEmulationModule(pl.LightningModule):
         log.info(f"Kaggle submission saved to {filepath}")
 
     def configure_optimizers(self):
-        optimizer = optim.Adam(self.parameters(), lr=self.hparams.learning_rate)
+        optimizer = optim.Adam(
+            self.parameters(), 
+            lr=self.hparams.learning_rate, 
+            weight_decay=self.hparams.weight_decay
+        )
         return optimizer
 
 
@@ -598,7 +611,11 @@ def main(cfg: DictConfig):
     model = get_model(cfg)
 
     # Create lightning module
-    lightning_module = ClimateEmulationModule(model, learning_rate=cfg.training.lr)
+    lightning_module = ClimateEmulationModule(
+        model, 
+        learning_rate=cfg.training.lr,
+        weight_decay=cfg.training.get("weight_decay")
+    )
 
     # Create lightning trainer
     trainer_config = get_trainer_config(cfg, model=model)

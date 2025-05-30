@@ -1,0 +1,6 @@
+# @package _global_.model
+
+type: unet
+base_channels: 8        # 8 → 16 → 32 only
+depth: 3
+convlstm_hidden: 16     # 0 disables temporal bottleneck
