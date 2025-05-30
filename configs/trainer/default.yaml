@@ -1,9 +1,9 @@
 # @package _global_.trainer
 
-max_epochs: 100  # Specific number of epochs
+max_epochs: 50  # Specific number of epochs
 accelerator: cuda  # force to use GPU so I don't need to write in code
 devices: 1  # Will be auto-detected in code
-deterministic: true # True for all others but false for CBAM for CNN_transformer and SFNO 
+deterministic: false # True for all others but false for CBAM for CNN_transformer and SFNO 
 num_sanity_val_steps: 0
 precision: 32
 

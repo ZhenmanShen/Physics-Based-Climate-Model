@@ -15,7 +15,6 @@ from lightning.pytorch import LightningDataModule
 from lightning.pytorch.loggers import WandbLogger
 from omegaconf import DictConfig, OmegaConf
 from torch.utils.data import DataLoader, Dataset
-from src.sequence_dataset import ClimateSequenceDataset
 
 
 try:
@@ -132,8 +131,7 @@ class ClimateEmulationDataModule(LightningDataModule):
         output_vars: list,
         train_ssps: list,
         test_ssp: str,
-        member_ids: list,
-        seq_len: int,
+        member_ids: list[int] = (0,),
         test_months: int = 360,
         batch_size: int = 32,
         eval_batch_size: int = None,
@@ -172,7 +170,7 @@ class ClimateEmulationDataModule(LightningDataModule):
             train_inputs_dask_list, train_outputs_dask_list = [], []
             val_input_dask, val_output_dask = None, None
             val_ssp = "ssp370"
-            val_months = 1080 # <- Change this to change the validation size
+            val_months = 1080
 
             # Process all SSPs
             log.info(f"Loading data from SSPs: {self.hparams.train_ssps}")
@@ -199,18 +197,6 @@ class ClimateEmulationDataModule(LightningDataModule):
                     # All other SSPs go entirely to training
                     train_inputs_dask_list.append(ssp_input_dask)
                     train_outputs_dask_list.append(ssp_output_dask)
-
-            # ---------- Patch validation to member 0 only ----------
-            # (ssp370-member0 was not loaded yet, so load it once now)
-            v_in, v_out = _load_process_ssp_data(
-                ds, val_ssp,
-                self.hparams.input_vars,
-                self.hparams.output_vars,
-                (2,),                                # ← SINGLE member tuple
-                spatial_template_da,
-            )
-            val_input_dask  = v_in[-val_months:]
-            val_output_dask = v_out[-val_months:]
 
             # Concatenate training data only
             train_input_dask = da.concatenate(train_inputs_dask_list, axis=0)
@@ -239,7 +225,7 @@ class ClimateEmulationDataModule(LightningDataModule):
                 self.hparams.test_ssp,
                 self.hparams.input_vars,
                 self.hparams.output_vars,
-                (0,),
+                self.hparams.member_ids,
                 spatial_template_da,
             )
 
@@ -254,16 +240,9 @@ class ClimateEmulationDataModule(LightningDataModule):
             test_output_raw_dask = sliced_test_output_raw_dask  # Keep unnormed for evaluation
 
         # Create datasets
-        #ClimateDataset(train_input_norm_dask, train_output_norm_dask, output_is_normalized=True)
-        #self.val_dataset = ClimateDataset(val_input_norm_dask, val_output_norm_dask, output_is_normalized=True)
-        #self.test_dataset = ClimateDataset(test_input_norm_dask, test_output_raw_dask, output_is_normalized=False)
-
-        #Edited
-        DS = ClimateDataset if self.hparams.seq_len == 1 else ClimateSequenceDataset
-        self.train_dataset = DS(train_input_norm_dask, train_output_norm_dask, seq_len=self.hparams.seq_len)
-        self.val_dataset   = DS(val_input_norm_dask,   val_output_norm_dask,   seq_len=self.hparams.seq_len)
-        # keep single-month targets for Kaggle metrics
-        self.test_dataset  = ClimateDataset(test_input_norm_dask, test_output_raw_dask, output_is_normalized=False)
+        self.train_dataset = ClimateDataset(train_input_norm_dask, train_output_norm_dask, output_is_normalized=True)
+        self.val_dataset = ClimateDataset(val_input_norm_dask, val_output_norm_dask, output_is_normalized=True)
+        self.test_dataset = ClimateDataset(test_input_norm_dask, test_output_raw_dask, output_is_normalized=False)
 
         # Log dataset sizes in a single message
         log.info(
@@ -327,7 +306,7 @@ class ClimateEmulationDataModule(LightningDataModule):
 
 # --- PyTorch Lightning Module ---
 class ClimateEmulationModule(pl.LightningModule):
-    def __init__(self, model: nn.Module, learning_rate: float, weight_decay: float):
+    def __init__(self, model: nn.Module, learning_rate: float):
         super().__init__()
         self.model = model
         # Access hyperparams via self.hparams object after saving, e.g., self.hparams.learning_rate
@@ -433,7 +412,7 @@ class ClimateEmulationModule(pl.LightningModule):
                     metric_value=time_mean_rmse,
                     metric_name="Weighted RMSE",
                 )
-                self.logger.experiment.log({f"img/{phase}/{var_name}/time_mean": wandb.Image(fig)})
+                self.logger.experiment.log({f"img/{var_name}/time_mean": wandb.Image(fig)})
                 plt.close(fig)
 
                 # Time standard deviation visualization
@@ -445,12 +424,10 @@ class ClimateEmulationModule(pl.LightningModule):
                     metric_name="Weighted MAE",
                     cmap="plasma",
                 )
-                self.logger.experiment.log({f"img/{phase}/{var_name}/time_Stddev": wandb.Image(fig)})
+                self.logger.experiment.log({f"img/{var_name}/time_Stddev": wandb.Image(fig)})
                 plt.close(fig)
 
                 # Sample timesteps visualization
-                # if n_timesteps > 3:
-                #     timesteps = np.random.choice(n_timesteps, 3, replace=False)
                 if n_timesteps > 10:
                     timesteps = [0, 12, 24, 36, 48, 60, 72, 84, 96, 108]
                     for t in timesteps:
@@ -493,67 +470,6 @@ class ClimateEmulationModule(pl.LightningModule):
         # Save predictions for Kaggle submission. This is the file that should be uploaded to Kaggle.
         log.info("Saving Kaggle submission...")
         self._save_kaggle_submission(all_preds_denorm)
-    
-    def _visualize_highest_loss(self, predictions, targets, losses):
-        # Get number of evaluation timesteps
-        n_timesteps = predictions.shape[0]
-
-        # Get area weights for proper spatial averaging
-        area_weights = self.trainer.datamodule.get_lat_weights()
-
-        # Get coordinates
-        lat_coords, lon_coords = self.trainer.datamodule.get_coords()
-        time_coords = np.arange(n_timesteps)
-        output_vars = self.trainer.datamodule.hparams.output_vars
-
-        # Process each output variable
-        for i, var_name in enumerate(output_vars):
-            # Extract channel data
-            preds_var = predictions[:, i, :, :]
-            trues_var = targets[:, i, :, :]
-
-            var_unit = "mm/day" if var_name == "pr" else "K" if var_name == "tas" else "unknown"
-
-            # Create xarray objects for weighted calculations
-            preds_xr = create_climate_data_array(
-                preds_var, time_coords, lat_coords, lon_coords, var_name=var_name, var_unit=var_unit
-            )
-            trues_xr = create_climate_data_array(
-                trues_var, time_coords, lat_coords, lon_coords, var_name=var_name, var_unit=var_unit
-            )
-
-            # Generate visualizations for test phase when using wandb
-            if isinstance(self.logger, WandbLogger):
-                
-                topk = 2
-                topk_indices = losses.topk(topk).indices
-
-                for t in topk_indices:
-                    true_t = trues_xr.isel(time=t)
-                    pred_t = preds_xr.isel(time=t)
-                    fig = create_comparison_plots(true_t, pred_t, title_prefix=f"{var_name} Timestep {t}")
-                    self.logger.experiment.log({f"img/train/{var_name}/month_idx_{t}": wandb.Image(fig)})
-                    plt.close(fig)
-                    
-    def on_train_end(self):
-        dataloader = self.trainer.datamodule.train_dataloader()
-        self.eval()
-        outputs = []
-        with torch.no_grad():
-            for batch in dataloader:
-                x, y_true = batch
-                y_pred = self(x.to(self.device))
-                loss = self.criterion(y_pred, y_true.to(self.device))
-                # loss = self.customloss(y_pred, y_true.to(self.device))
-                y_pred = self.normalizer.inverse_transform_output(y_pred.detach().cpu().numpy())
-                y_true = self.normalizer.inverse_transform_output(y_true.detach().cpu().numpy())
-                outputs.append((y_pred, y_true, loss.detach().cpu().item()))
-
-        all_preds_denorm = np.concatenate([pred for pred, true, loss in outputs], axis=0)
-        all_trues_denorm = np.concatenate([true for pred, true, loss in outputs], axis=0)
-        all_losses = torch.tensor([loss for pred, true, loss in outputs])
-
-        self._visualize_highest_loss(all_preds_denorm, all_trues_denorm, all_losses)
 
         self.test_step_outputs.clear()  # Clear the outputs list
 
@@ -589,11 +505,7 @@ class ClimateEmulationModule(pl.LightningModule):
         log.info(f"Kaggle submission saved to {filepath}")
 
     def configure_optimizers(self):
-        optimizer = optim.Adam(
-            self.parameters(), 
-            lr=self.hparams.learning_rate, 
-            weight_decay=self.hparams.weight_decay
-        )
+        optimizer = optim.Adam(self.parameters(), lr=self.hparams.learning_rate)
         return optimizer
 
 
@@ -611,11 +523,7 @@ def main(cfg: DictConfig):
     model = get_model(cfg)
 
     # Create lightning module
-    lightning_module = ClimateEmulationModule(
-        model, 
-        learning_rate=cfg.training.lr,
-        weight_decay=cfg.training.get("weight_decay")
-    )
+    lightning_module = ClimateEmulationModule(model, learning_rate=cfg.training.lr)
 
     # Create lightning trainer
     trainer_config = get_trainer_config(cfg, model=model)

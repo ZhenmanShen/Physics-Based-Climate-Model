@@ -5,7 +5,8 @@ from .cnn_transformer import CNNTransformer
 from  .cnn_transformer_attention import CNNTransformerAttention
 from .unet_transformer import UNetTransformer
 from .fno_transformer import FNOTransformer
-from .unet import UNet
+from .unetpp import UNetPlusPlus
+from .unetpp_pro import UNetPlusPlusPro
 
 def get_model(cfg: DictConfig):
     # Create model based on configuration
@@ -22,14 +23,20 @@ def get_model(cfg: DictConfig):
             mlp_dim=cfg.model.mlp_dim,
             dropout=cfg.model.dropout
         )
-    elif cfg.model.type == "unet":
-        return UNet(
+    elif cfg.model.type == "unetpp":            
+        return UNetPlusPlus(
             n_input_channels=len(cfg.data.input_vars),
             n_output_channels=len(cfg.data.output_vars),
-            base_channels=cfg.model.base_channels,
-            depth=cfg.model.depth,
-            convlstm_hidden=cfg.model.convlstm_hidden if cfg.data.seq_len > 1 else 0,
-    )
+            base_ch=cfg.model.base_ch,
+            deep_supervision=cfg.model.deep_supervision,
+        )
+    elif cfg.model.type == "unetpp_pro":         
+        return UNetPlusPlusPro(
+            n_input_channels=len(cfg.data.input_vars),
+            n_output_channels=len(cfg.data.output_vars),
+            base_ch=cfg.model.base_ch,
+            deep_supervision=cfg.model.deep_supervision,
+        )
     elif cfg.model.type == "cnn_transformer_attention":
         return CNNTransformerAttention(
             in_channels=len(cfg.data.input_vars),
