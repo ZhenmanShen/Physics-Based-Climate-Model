@@ -44,32 +44,114 @@ log = get_logger(__name__)
 
 # Dataset to precompute all tensors during initialization
 class ClimateDataset(Dataset):
-    def __init__(self, inputs_norm_dask, outputs_dask, output_is_normalized=True):
-        # Store dataset size
-        self.size = inputs_norm_dask.shape[0]
-
-        # Log once with basic information
+    def __init__(self, inputs_norm_dask, outputs_dask, seq_len: int, output_is_normalized=True):
         log.info(
-            f"Creating dataset: {self.size} samples, input shape: {inputs_norm_dask.shape}, normalized output: {output_is_normalized}"
+            f"Initializing ClimateDataset. Input dask shape: {inputs_norm_dask.shape}, "
+            f"Output dask shape: {outputs_dask.shape}, seq_len: {seq_len}, output_normalized: {output_is_normalized}"
         )
 
         # Precompute all tensors in one go
         inputs_np = inputs_norm_dask.compute()
-        outputs_np = outputs_dask.compute()
+        outputs_np = outputs_dask.compute() # This is the target data
 
-        # Convert to PyTorch tensors
         self.input_tensors = torch.from_numpy(inputs_np).float()
-        self.output_tensors = torch.from_numpy(outputs_np).float()
+        self.output_tensors = torch.from_numpy(outputs_np).float() # Targets
+        self.seq_len = seq_len
+        self.total_timesteps = inputs_np.shape[0] # Total individual months in this data chunk
 
-        # Handle NaN values (should not occur)
+        # --- MODIFIED FOR PADDING ---
+        # self.size will be the total number of timesteps, as we aim to predict for each.
+        self.size = self.total_timesteps
+        # --- END OF MODIFICATION ---
+
+        log.info(
+            f"Dataset created. Input tensor shape: {self.input_tensors.shape}, "
+            f"Output tensor shape: {self.output_tensors.shape}, "
+            f"Effective dataset size (number of targets to predict): {self.size}"
+        )
+
+        # Determine padding shape once.
+        # This assumes input_tensors[0] gives a single timestep (C, H, W).
+        if self.total_timesteps > 0 and self.input_tensors.numel() > 0 :
+            self.pad_tensor_template = torch.zeros_like(self.input_tensors[0], dtype=self.input_tensors.dtype, device=self.input_tensors.device)
+            log.info(f"Padding template created with shape: {self.pad_tensor_template.shape}")
+        elif self.seq_len > 0 : # If seq_len > 0 but no data to infer padding shape
+             log.warning(
+                f"Input tensors are empty or total_timesteps is 0, but seq_len is {self.seq_len}. "
+                "Cannot create a padding template. This will cause errors if padding is needed."
+             )
+             self.pad_tensor_template = None # Will cause error if used later
+        else: # seq_len is 0 or no data, no padding needed.
+            self.pad_tensor_template = None
+
+
+        # Handle NaN values
         if torch.isnan(self.input_tensors).any() or torch.isnan(self.output_tensors).any():
-            raise ValueError("NaN values detected in dataset tensors")
+            log.warning("NaN values detected in dataset tensors after .compute(). This might lead to issues.")
+
 
     def __len__(self):
+        # This now returns the total number of timesteps, as we'll predict for each one.
         return self.size
 
     def __getitem__(self, idx):
-        return self.input_tensors[idx], self.output_tensors[idx]
+        # idx will range from 0 to self.total_timesteps - 1.
+        # We want to predict the output for self.output_tensors[idx].
+        # The UNetWithConvLSTM's last LSTM output is used for the decoder,
+        # so it predicts the output corresponding to the last timestep of its input sequence,
+        # OR the step immediately after, depending on its exact design and training.
+        #
+        # Let's assume the LSTM model, given an input sequence X_t, X_{t+1}, ..., X_{t+T-1},
+        # is trained to predict Y_{t+T-1} (output at the end of the sequence window)
+        # OR Y_{t+T} (output for the step after the sequence window).
+        #
+        # The provided UNetWithConvLSTM structure:
+        #   lstm_out_seq = self.conv_lstm_bottleneck(bottleneck_seq)
+        #   x_decoder_input = lstm_out_seq[-1, :, :, :, :]
+        # This uses the LSTM's hidden state from the *last actual input time step* of the sequence.
+        # This state is then used to make a prediction. This prediction usually corresponds to
+        # the output at that *same last time step* or the *next time step*.
+        #
+        # If your model predicts Y_k given input sequence X_{k-T+1}...X_k:
+        # Target is output_tensors[idx]
+        # Input sequence needs to end at input_tensors[idx]
+        # Input sequence indices: [idx - seq_len + 1, ..., idx]
+
+        target = self.output_tensors[idx]
+        input_sequence_parts = []
+
+        for i in range(self.seq_len):
+            # We need input from timestep (idx - seq_len + 1 + i) to predict for target at idx
+            current_input_idx = idx - self.seq_len + 1 + i
+
+            if current_input_idx < 0:
+                # This part of the history is before the start of our available data, so pad.
+                if self.pad_tensor_template is None:
+                    raise RuntimeError("Padding template not available. Input data might be empty or seq_len is 0.")
+                input_sequence_parts.append(self.pad_tensor_template)
+            else:
+                # Ensure we don't try to access beyond the actual input data if idx is very large
+                # (though this shouldn't happen if idx < self.total_timesteps and logic is correct)
+                if current_input_idx < self.total_timesteps:
+                     input_sequence_parts.append(self.input_tensors[current_input_idx])
+                else:
+                    # This case implies an issue with indexing logic if idx is a valid target index.
+                    # For input sequence X_{k-T+1}...X_k to predict Y_k, max current_input_idx is k.
+                    # Since max k (idx) is total_timesteps-1, this should be fine.
+                    # However, if something is off, pad as a fallback.
+                    log.warning(f"Attempted to access input_idx {current_input_idx} beyond total_timesteps {self.total_timesteps} for target_idx {idx}. Padding instead.")
+                    if self.pad_tensor_template is None:
+                         raise RuntimeError("Padding template not available for fallback.")
+                    input_sequence_parts.append(self.pad_tensor_template)
+
+
+        if len(input_sequence_parts) != self.seq_len:
+            # This should ideally not happen with the loop structure
+            raise RuntimeError(f"Constructed input sequence has length {len(input_sequence_parts)}, expected {self.seq_len}")
+
+        input_seq = torch.stack(input_sequence_parts, dim=0) # Stacks along new dim 0 -> (seq_len, C, H, W)
+        
+        return input_seq, target
 
 
 def _load_process_ssp_data(
@@ -131,6 +213,8 @@ class ClimateEmulationDataModule(LightningDataModule):
         output_vars: list,
         train_ssps: list,
         test_ssp: str,
+        seq_len: int,
+        transform_map: dict,
         member_ids: list[int] = (0,),
         test_months: int = 360,
         batch_size: int = 32,
@@ -143,6 +227,8 @@ class ClimateEmulationDataModule(LightningDataModule):
         self.hparams.path = to_absolute_path(path)
         self.normalizer = Normalizer()
         self.hparams.member_ids = list(member_ids)
+        self.hparams.transform_map = transform_map
+        self.hparams.seq_len = seq_len
 
         # Set evaluation batch size to training batch size if not specified
         if eval_batch_size is None:
@@ -160,93 +246,168 @@ class ClimateEmulationDataModule(LightningDataModule):
     def setup(self, stage: str | None = None):
         log.info(f"Setting up data module for stage: {stage} from {self.hparams.path}")
 
-        # Use context manager for opening dataset
         with xr.open_zarr(self.hparams.path, consolidated=True, chunks={"time": 24}) as ds:
-            # Create a spatial template ONCE using a variable guaranteed to have y, x
-            # Extract the template DataArray before renaming for coordinate access
-            spatial_template_da = ds["rsdt"].isel(time=0, ssp=0, drop=True)  # drop time/ssp dims
+            spatial_template_da = ds["rsdt"].isel(time=0, ssp=0, drop=True)
 
-            # --- Prepare Training and Validation Data ---
             train_inputs_dask_list, train_outputs_dask_list = [], []
             val_input_dask, val_output_dask = None, None
-            val_ssp = "ssp370"
-            val_months = 1080
+            val_ssp = "ssp370" 
+            val_months = 1080 
 
-            # Process all SSPs
             log.info(f"Loading data from SSPs: {self.hparams.train_ssps}")
             for ssp in self.hparams.train_ssps:
-                # Load the data for this SSP
                 ssp_input_dask, ssp_output_dask = _load_process_ssp_data(
-                    ds,
-                    ssp,
-                    self.hparams.input_vars,
-                    self.hparams.output_vars,
-                    self.hparams.member_ids,
-                    spatial_template_da,
+                    ds, ssp, self.hparams.input_vars, self.hparams.output_vars,
+                    self.hparams.member_ids, spatial_template_da,
                 )
 
                 if ssp == val_ssp:
-                    # Special handling for SSP 370: split into training and validation
-                    # Last 120 months go to validation
                     val_input_dask = ssp_input_dask[-val_months:]
                     val_output_dask = ssp_output_dask[-val_months:]
-                    # Early months go to training if there are any
-                    train_inputs_dask_list.append(ssp_input_dask[:-val_months])
-                    train_outputs_dask_list.append(ssp_output_dask[:-val_months])
+                    if ssp_input_dask.shape[0] > val_months: 
+                        train_inputs_dask_list.append(ssp_input_dask[:-val_months])
+                        train_outputs_dask_list.append(ssp_output_dask[:-val_months])
                 else:
-                    # All other SSPs go entirely to training
                     train_inputs_dask_list.append(ssp_input_dask)
                     train_outputs_dask_list.append(ssp_output_dask)
+            
+            if not train_inputs_dask_list: 
+                raise ValueError("No training data available. Check SSP configuration and val_months.")
 
-            # Concatenate training data only
             train_input_dask = da.concatenate(train_inputs_dask_list, axis=0)
             train_output_dask = da.concatenate(train_outputs_dask_list, axis=0)
 
-            # Compute z-score normalization statistics using the training data
-            input_mean = da.nanmean(train_input_dask, axis=(0, 2, 3), keepdims=True).compute()
-            input_std = da.nanstd(train_input_dask, axis=(0, 2, 3), keepdims=True).compute()
-            output_mean = da.nanmean(train_output_dask, axis=(0, 2, 3), keepdims=True).compute()
-            output_std = da.nanstd(train_output_dask, axis=(0, 2, 3), keepdims=True).compute()
+            # --- Calculate overall statistics for normalization (used if not pre-defined or for specific methods) ---
+            # These are calculated on the original training data for each channel.
+            # Shape: (1, num_channels, 1, 1) -> then squeezed to scalar per channel for params.
+            overall_input_mean = da.nanmean(train_input_dask, axis=(0, 2, 3), keepdims=True).compute()
+            overall_input_std = da.nanstd(train_input_dask, axis=(0, 2, 3), keepdims=True).compute()
+            overall_input_min = da.nanmin(train_input_dask, axis=(0, 2, 3), keepdims=True).compute()
+            overall_input_max = da.nanmax(train_input_dask, axis=(0, 2, 3), keepdims=True).compute()
 
-            self.normalizer.set_input_statistics(mean=input_mean, std=input_std)
-            self.normalizer.set_output_statistics(mean=output_mean, std=output_std)
+            overall_output_mean = da.nanmean(train_output_dask, axis=(0, 2, 3), keepdims=True).compute()
+            overall_output_std = da.nanstd(train_output_dask, axis=(0, 2, 3), keepdims=True).compute()
+            overall_output_min = da.nanmin(train_output_dask, axis=(0, 2, 3), keepdims=True).compute()
+            overall_output_max = da.nanmax(train_output_dask, axis=(0, 2, 3), keepdims=True).compute()
 
-            # --- Define Normalized Training Dask Arrays ---
+            # --- Construct INDEX-KEYED transform_map for Normalizer A ---
+            input_transform_map_indexed = {}
+            for i, var_name in enumerate(self.hparams.input_vars):
+                var_config_user = self.hparams.transform_map.get(var_name, {'method': 'zscore'})
+                method = var_config_user.get('method', 'zscore')
+                params = {}
+                
+                current_var_train_data_slice = train_input_dask[:, i, :, :] # Shape (time, y, x)
+
+                if method == 'zscore':
+                    params['mean'] = overall_input_mean[0, i, 0, 0]
+                    params['std'] = overall_input_std[0, i, 0, 0]
+                elif method == 'minimax':
+                    params['min_val'] = var_config_user.get('min', overall_input_min[0, i, 0, 0])
+                    params['max_val'] = var_config_user.get('max', overall_input_max[0, i, 0, 0])
+                elif method == 'log1p':
+                    data_after_log1p = da.log1p(current_var_train_data_slice)
+                    params['mean'] = da.nanmean(data_after_log1p).compute() # Mean of log1p(data)
+                    params['std'] = da.nanstd(data_after_log1p).compute()   # Std of log1p(data)
+                elif method == 'sqrt':
+                    data_after_sqrt = da.sqrt(current_var_train_data_slice)
+                    params['mean'] = da.nanmean(data_after_sqrt).compute()  # Mean of sqrt(data)
+                    params['std'] = da.nanstd(data_after_sqrt).compute()    # Std of sqrt(data)
+                elif method == 'pow':
+                    exponent = var_config_user.get('lambda')
+                    if exponent is None:
+                        raise ValueError(f"'lambda' (exponent) must be provided for 'pow' method for variable '{var_name}'.")
+                    params['lambda'] = exponent
+                    data_after_pow = current_var_train_data_slice ** exponent
+                    params['mean'] = da.nanmean(data_after_pow).compute()  # Mean of data**lambda
+                    params['std'] = da.nanstd(data_after_pow).compute()    # Std of data**lambda
+                else:
+                    log.warning(f"Method '{method}' for input var '{var_name}' might not have specific stat calculation logic here; using raw params if any from config.")
+                    params = var_config_user.get('params', {})
+
+
+                input_transform_map_indexed[i] = {'method': method, 'params': params}
+                log.info(f"Input var '{var_name}' (idx {i}): method='{method}', params calculated/set.")
+            
+            self.normalizer.set_input_statistics(input_transform_map_indexed)
+
+            # --- Construct transform_map for outputs (similar logic) ---
+            output_transform_map_indexed = {}
+            for i, var_name in enumerate(self.hparams.output_vars):
+                var_config_user = self.hparams.transform_map.get(var_name, {'method': 'zscore'})
+                method = var_config_user.get('method', 'zscore')
+                params = {}
+
+                current_var_train_data_slice = train_output_dask[:, i, :, :] # Shape (time, y, x)
+
+                if method == 'zscore':
+                    params['mean'] = overall_output_mean[0, i, 0, 0]
+                    params['std'] = overall_output_std[0, i, 0, 0]
+                elif method == 'minimax':
+                    params['min_val'] = var_config_user.get('min', overall_output_min[0, i, 0, 0])
+                    params['max_val'] = var_config_user.get('max', overall_output_max[0, i, 0, 0])
+                elif method == 'log1p':
+                    data_after_log1p = da.log1p(current_var_train_data_slice)
+                    params['mean'] = da.nanmean(data_after_log1p).compute()
+                    params['std'] = da.nanstd(data_after_log1p).compute()
+                elif method == 'sqrt':
+                    data_after_sqrt = da.sqrt(current_var_train_data_slice)
+                    params['mean'] = da.nanmean(data_after_sqrt).compute()
+                    params['std'] = da.nanstd(data_after_sqrt).compute()
+                elif method == 'pow':
+                    exponent = var_config_user.get('lambda')
+                    if exponent is None:
+                        raise ValueError(f"'lambda' (exponent) must be provided for 'pow' method for variable '{var_name}'.")
+                    params['lambda'] = exponent
+                    data_after_pow = current_var_train_data_slice ** exponent
+                    params['mean'] = da.nanmean(data_after_pow).compute()
+                    params['std'] = da.nanstd(data_after_pow).compute()
+                else:
+                    log.warning(f"Method '{method}' for output var '{var_name}' might not have specific stat calculation logic here; using raw params if any from config.")
+                    params = var_config_user.get('params', {})
+                
+                output_transform_map_indexed[i] = {'method': method, 'params': params}
+                log.info(f"Output var '{var_name}' (idx {i}): method='{method}', params calculated/set.")
+
+            self.normalizer.set_output_statistics(output_transform_map_indexed)
+
+            # --- Normalize data using the configured Normalizer A ---
             train_input_norm_dask = self.normalizer.normalize(train_input_dask, data_type="input")
             train_output_norm_dask = self.normalizer.normalize(train_output_dask, data_type="output")
-
-            # --- Define Normalized Validation Dask Arrays ---
-            val_input_norm_dask = self.normalizer.normalize(val_input_dask, data_type="input")
-            val_output_norm_dask = self.normalizer.normalize(val_output_dask, data_type="output")
+            
+            if val_input_dask is not None and val_output_dask is not None:
+                val_input_norm_dask = self.normalizer.normalize(val_input_dask, data_type="input")
+                val_output_norm_dask = self.normalizer.normalize(val_output_dask, data_type="output")
+            else: 
+                val_input_norm_dask, val_output_norm_dask = None, None
 
             # --- Prepare Test Data ---
             full_test_input_dask, full_test_output_dask = _load_process_ssp_data(
-                ds,
-                self.hparams.test_ssp,
-                self.hparams.input_vars,
-                self.hparams.output_vars,
-                self.hparams.member_ids,
-                spatial_template_da,
+                ds, self.hparams.test_ssp, self.hparams.input_vars, self.hparams.output_vars,
+                self.hparams.member_ids, spatial_template_da,
             )
-
-            # --- Slice Test Data ---
-            test_slice = slice(-self.hparams.test_months, None)  # Last N months
-
+            test_slice = slice(-self.hparams.test_months, None)
             sliced_test_input_dask = full_test_input_dask[test_slice]
-            sliced_test_output_raw_dask = full_test_output_dask[test_slice]
-
-            # --- Define Normalized Test Input Dask Array ---
+            sliced_test_output_raw_dask = full_test_output_dask[test_slice] # Test outputs are raw
+            
             test_input_norm_dask = self.normalizer.normalize(sliced_test_input_dask, data_type="input")
-            test_output_raw_dask = sliced_test_output_raw_dask  # Keep unnormed for evaluation
+            # test_output_raw_dask is kept unnormalized for evaluation
 
-        # Create datasets
-        self.train_dataset = ClimateDataset(train_input_norm_dask, train_output_norm_dask, output_is_normalized=True)
-        self.val_dataset = ClimateDataset(val_input_norm_dask, val_output_norm_dask, output_is_normalized=True)
-        self.test_dataset = ClimateDataset(test_input_norm_dask, test_output_raw_dask, output_is_normalized=False)
+        # Create datasets (passing seq_len)
+        seq_len = self.hparams.seq_len # Get seq_len from hparams
+        self.train_dataset = ClimateDataset(train_input_norm_dask, train_output_norm_dask, seq_len=seq_len, output_is_normalized=True)
+        
+        val_len = 0
+        if val_input_norm_dask is not None and val_output_norm_dask is not None:
+            self.val_dataset = ClimateDataset(val_input_norm_dask, val_output_norm_dask, seq_len=seq_len, output_is_normalized=True)
+            val_len = len(self.val_dataset)
+        else:
+            self.val_dataset = None 
+            log.warning("No validation data was separated. Validation steps will be skipped if val_dataset is None.")
 
-        # Log dataset sizes in a single message
+        self.test_dataset = ClimateDataset(test_input_norm_dask, sliced_test_output_raw_dask, seq_len=seq_len, output_is_normalized=False)
         log.info(
-            f"Datasets created. Train: {len(self.train_dataset)}, Val: {len(self.val_dataset)} (last months of {val_ssp}), Test: {len(self.test_dataset)}"
+            f"Datasets created. Train: {len(self.train_dataset)}, Val: {val_len}, Test: {len(self.test_dataset)}"
         )
 
     # Common DataLoader configuration

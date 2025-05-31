@@ -18,12 +18,12 @@ train_ssps:
   - "ssp126"
   - "ssp370"
   - "ssp585"
-seq_len: 3
 test_ssp: "ssp245"
 test_months: 360
+seq_len: 6
 
 batch_size: 64 # Nvidia GPU has headroom, CHANGE to 32 if not using Nvidia GPU
-num_workers: 4
+num_workers: 6
 
 # --- per-variable normalization recipes ---
 transform_map:
@@ -32,14 +32,14 @@ transform_map:
   SO2:
     method: log1p
   CH4:
-    method: minmax
+    method: minimax
   BC:
     method: log1p
   rsdt:
-    method: minmax
+    method: minimax
     min: 0
     max: 550
   tas:
     method: zscore
   pr:
-    method: log1p
+    method: zscore
