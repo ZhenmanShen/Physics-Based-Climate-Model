@@ -1,5 +1,0 @@
-# @package _global_.model
-
-type: unetpp
-base_ch: 32 
-deep_supervision: true

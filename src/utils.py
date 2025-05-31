@@ -1,6 +1,6 @@
 import logging
 from typing import Any, Dict
-
+import dask.array as da
 import hydra
 import matplotlib.pyplot as plt
 import numpy as np
@@ -30,83 +30,141 @@ log = get_logger(__name__)
 
 
 class Normalizer:
-    """
-    Helper class for Z-score normalization. Stores mean/std as NumPy arrays.
-
-    Applies the standard normalization formula: (data - mean) / std
-    """
-
-    def __init__(self):
-        """Initialize the normalizer with empty parameters."""
-        self.mean_in, self.std_in = None, None
-        self.mean_out, self.std_out = None, None
-
-    def set_input_statistics(self, mean, std):
+    def __init__(self, transform_map: Dict[str, Dict[str, Any]]):
         """
-        Set normalization parameters for input features.
-
-        Args:
-            mean: Mean values for input normalization, shape [num_channels, 1, 1]
-            std: Standard deviation values for input normalization, shape [num_channels, 1, 1]
+        transform_map: e.g.
+        {
+          "CO2": {"method": "log1p"},
+          "pr":  {"method": "pow", "lambda": 1/3},
+          "rsdt": {"method": "minmax", "min": 0, "max": 550},
+          ...
+        }
         """
-        log.info(f"Setting input normalizer with mean shape: {mean.shape}, std shape: {std.shape}")
-        self.mean_in = mean
-        self.std_in = std
+        self.transform_map = transform_map
+        self.stats_map: Dict[str, Dict[str, Any]] = {}
 
-    def set_output_statistics(self, mean, std):
+    def _fit_zscore(self, array: da.Array):
+        mean = da.nanmean(array, axis=(0, 2, 3), keepdims=True).compute()
+        std = da.nanstd(array, axis=(0, 2, 3), keepdims=True).compute()
+        return mean, std
+
+    def _fit_minmax(self, array: da.Array):
+        min_val = da.nanmin(array, axis=(0, 2, 3), keepdims=True).compute()
+        max_val = da.nanmax(array, axis=(0, 2, 3), keepdims=True).compute()
+        return min_val, max_val
+
+    def fit(self, data_arrays: Dict[str, da.Array]):
         """
-        Set normalization parameters for output values.
-
-        Args:
-            mean: Mean value(s) for output normalization
-            std: Standard deviation value(s) for output normalization
+        Fit stats for each variable in data_arrays.
+        data_arrays[var_name] must be shape (time,1,y,x) or (time,y,x).
         """
-        log.info(f"Setting output normalizer with mean shape: {mean.shape}, std shape: {std.shape}")
-        self.mean_out = mean
-        self.std_out = std
+        for var_name, array in data_arrays.items():
+            recipe = self.transform_map.get(var_name, {})
+            method = recipe.get("method", "zscore")
 
-    def normalize(self, data, data_type="input"):
+            if method == "zscore":
+                mean, std = self._fit_zscore(array)
+
+                self.stats_map[var_name] = {
+                    "method": "zscore",
+                    "mean": mean,
+                    "std": std,
+                }
+
+            elif method == "minmax":
+                # if user hard-coded min/max, use that; otherwise compute
+                if "min" in recipe and "max" in recipe:
+                    min_val = recipe["min"]
+                    max_val = recipe["max"]
+                else:
+                    min_val, max_val = self._fit_minmax(array)
+
+                self.stats_map[var_name] = {
+                    "method": "minmax",
+                    "min": min_val,
+                    "max": max_val,
+                }
+
+            elif method in ("log1p", "sqrt", "pow"):
+                # apply the non-linear, then fit zscore on the transformed array
+                if method == "log1p":
+                    transformed = da.log1p(array)
+                elif method == "sqrt":
+                    transformed = da.sqrt(array)
+                else:  # pow
+                    exponent = recipe.get("lambda", 1.0)
+                    transformed = array ** exponent
+
+                mean, std = self._fit_zscore(transformed)
+                entry: Dict[str, Any] = {
+                    "method": method,
+                    "mean": mean,
+                    "std": std,
+                }
+                if method == "pow":
+                    entry["lambda"] = exponent
+                self.stats_map[var_name] = entry
+
+            else:
+                raise ValueError(
+                    f"Unknown normalization method '{method}' for variable '{var_name}'"
+                )
+
+    def transform(self, array, var_name: str):
         """
-        Normalize data using fitted mean and std values
-
-        Args:
-            data: Input data to normalize (numpy array or dask array)
-                 Expected shapes:
-                 - input: (time, channels, y, x)
-                 - output: (time, C, y, x) - channel dimension should already be added
-            data_type: Either 'input' or 'output' to specify which normalization to use
-
-        Returns:
-            Normalized data with same type as input
+        Apply normalization to `array` (dask or numpy) for variable `var_name`.
+        Returns normalized array of same type.
         """
-        if data_type == "input":
-            if self.mean_in is None or self.std_in is None:
-                raise RuntimeError("Must fit input normalizer before normalizing input data")
-            return (data - self.mean_in) / self.std_in
-        elif data_type == "output":
-            if self.mean_out is None or self.std_out is None:
-                raise RuntimeError("Must fit output normalizer before normalizing output data")
-            # Output data should already have channel dimension
-            return (data - self.mean_out) / self.std_out
-        else:
-            raise ValueError(f"Unknown data_type: {data_type}. Use 'input' or 'output'")
+        info = self.stats_map[var_name]
+        method = info["method"]
 
-    def inverse_transform_output(self, data_norm):
+        if method == "zscore":
+            return (array - info["mean"]) / info["std"]
+
+        if method == "minmax":
+            denom = info["max"] - info["min"] + 1e-9
+            return (array - info["min"]) / denom
+
+        if method == "log1p":
+            return (da.log1p(array) - info["mean"]) / info["std"]
+
+        if method == "sqrt":
+            return (da.sqrt(array) - info["mean"]) / info["std"]
+
+        if method == "pow":
+            exponent = info["lambda"]
+            return (array ** exponent - info["mean"]) / info["std"]
+
+        raise ValueError(f"Unsupported method '{method}'")
+
+    def inverse(self, array, var_name: str):
         """
-        Denormalize output data back to original scale
-
-        Args:
-            data_norm: Normalized output data with shape (..., C, lat, lon)
-
-        Returns:
-            Denormalized data in same format as input
+        Inverse-transform a numpy array of normalized outputs back to the original scale.
         """
-        if self.mean_out is None or self.std_out is None:
-            raise RuntimeError("Must fit output normalizer before inverse transforming")
+        info = self.stats_map[var_name]
+        method = info["method"]
 
-        # Handles broadcasting correctly
-        denormalized = data_norm * self.std_out + self.mean_out
-        return denormalized
+        if method == "zscore":
+            return array * info["std"] + info["mean"]
+
+        if method == "minmax":
+            span = info["max"] - info["min"]
+            return array * span + info["min"]
+
+        if method == "log1p":
+            denorm = array * info["std"] + info["mean"]
+            return np.expm1(denorm)
+
+        if method == "sqrt":
+            denorm = array * info["std"] + info["mean"]
+            return denorm ** 2
+
+        if method == "pow":
+            denorm = array * info["std"] + info["mean"]
+            exponent = info["lambda"]
+            return denorm ** (1 / exponent)
+
+        raise ValueError(f"Unsupported method '{method}'")
 
 
 def get_trainer_config(cfg: DictConfig, model=None) -> Dict[str, Any]:

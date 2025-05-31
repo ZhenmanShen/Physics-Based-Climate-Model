@@ -1,0 +1,6 @@
+# @package _global_.model
+
+type: convlstm_unet
+
+
+base_channels: 16
