@@ -2,7 +2,7 @@
 
 defaults:
   - data: data
-  - model: conv_lstm # Must change 
+  - model: cnn_transformer_attention # Must change 
   - training: default
   - trainer: default
   - _self_
