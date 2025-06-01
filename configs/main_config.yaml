@@ -2,7 +2,7 @@
 
 defaults:
   - data: data
-  - model: precip_enhanced_model # Must change 
+  - model: conv_lstm # Must change 
   - training: default
   - trainer: default
   - _self_

@@ -1,11 +1,11 @@
 # @package _global_.trainer
 
-max_epochs: 50  # Specific number of epochs
+max_epochs: 20  # Specific number of epochs
 accelerator: auto  # force to use GPU so I don't need to write in code
 devices: 1  # Will be auto-detected in code
 deterministic: false # True for all others but false for CBAM for CNN_transformer and SFNO 
 num_sanity_val_steps: 0
-precision: 16-mixed
+precision: 16
 
 # Define callbacks as a list for Hydra instantiation
 callbacks:

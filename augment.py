@@ -72,7 +72,6 @@ class ClimateDataset(Dataset):
     def __getitem__(self, idx):
         return self.input_tensors[idx], self.output_tensors[idx]
 
-
 def _load_process_ssp_data(
     ds,
     ssp: str,
@@ -122,7 +121,6 @@ def _load_process_ssp_data(
     stacked_input = da.concatenate(input_members, axis=0)
     stacked_output = da.concatenate(output_members, axis=0)
     return stacked_input, stacked_output
-
 
 class ClimateEmulationDataModule(LightningDataModule):
     def __init__(
@@ -339,7 +337,7 @@ class ClimateEmulationDataModule(LightningDataModule):
                 self.lon_coords = template.x.values
 
         return self.lat_coords, self.lon_coords
-
+        
 
 # --- PyTorch Lightning Module ---
 class ClimateEmulationModule(pl.LightningModule):

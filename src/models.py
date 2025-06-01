@@ -8,6 +8,7 @@ from .fno_transformer import FNOTransformer
 from .unetpp import UNetPlusPlus
 from .unetpp_pro import UNetPlusPlusPro
 from .precip_enhanced_model import PrecipitationEnhancedModel
+from .conv_lstm import ClimateConvLSTM
 
 def get_model(cfg: DictConfig):
     # Create model based on configuration
@@ -72,6 +73,8 @@ def get_model(cfg: DictConfig):
             mlp_dim=cfg.model.mlp_dim,
             dropout=cfg.model.dropout
         )
+    elif cfg.model.type == "conv_lstm":
+        return ClimateConvLSTM()
     else:
         raise ValueError(f"Unknown model type: {cfg.model.type}")
     return model
