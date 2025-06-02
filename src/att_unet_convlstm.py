@@ -30,7 +30,7 @@ class AttUNetConvLSTM(nn.Module):
         self.seq_len = seq_len
 
         # Per-frame Encoder (deeper: 4 stages)
-        self.enc1 = ConvBlock(in_ch, base)          # H, W, base
+        self.enc1 = ConvBlock(in_ch+6, base)          # H, W, base
         self.enc2 = DownPoolEnc(base, base * 2)     # H/2, W/2, base*2
         self.enc3 = DownPoolEnc(base * 2, base * 4) # H/4, W/4, base*4
         self.enc4 = DownPoolEnc(base * 4, base * 8) # H/8, W/8, base*8 (features for ConvLSTM)
@@ -43,6 +43,10 @@ class AttUNetConvLSTM(nn.Module):
         # If c_hid=base*8 (e.g., 128 for base=16), Conv2d(128+128, 4*128)=Conv2d(256,512) -> ~1.18M params (too much for LSTM part alone)
         # So, c_hid = base*4 seems like a good compromise.
         self.convlstm = ConvLSTM(c_in=base * 8, c_hid=base * 4, kernel_size=3)
+        self.post_conv = nn.Sequential(
+            nn.Conv2d(base*4, base*4, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True)
+        )
         
         # Decoder
         # ConvLSTM output has base*4 channels. Skips from enc3, enc2, enc1.

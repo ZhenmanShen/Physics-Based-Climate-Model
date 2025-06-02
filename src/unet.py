@@ -42,6 +42,7 @@ class ConvBlock(nn.Module):
         self.spat = SpatialGate()
 
     def forward(self, x):
+        
         x = self.body(x)
         x = self.se(x)
         x = self.spat(x)

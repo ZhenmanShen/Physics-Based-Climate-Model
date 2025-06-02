@@ -153,7 +153,6 @@ class ClimateDataset(Dataset):
         
         return input_seq, target
 
-
 def _load_process_ssp_data(
     ds,
     ssp: str,
@@ -163,46 +162,210 @@ def _load_process_ssp_data(
     spatial_template: xr.DataArray,
 ):
     """
-    Returns inputs & outputs for **all requested ensemble members**,
-    concatenated on the *time* axis (time × channels × y × x).
+    Enhanced with temporal features and variable interactions
+    without requiring new data variables
     """
     input_members, output_members = [], []
-
+    n_y, n_x = spatial_template.sizes['y'], spatial_template.sizes['x']
+    
     for m in member_ids:
-        ssp_input_dasks, ssp_output_dasks = [], []
-
-        # ---------- INPUTS ----------
+        ssp_input_dasks = []
+        # PROCESS OUTPUT TO GET TIME DIMENSION
+        da_out0 = ds[output_variables[0]].sel(ssp=ssp, member_id=m)
+        if "latitude" in da_out0.dims:
+            da_out0 = da_out0.rename({"latitude": "y", "longitude": "x"})
+        time_coord = da_out0.time
+        n_time = len(time_coord)
+        year = time_coord.dt.year.data
+        month_idx = (time_coord.dt.month - 1).data
+        
+        # ===== ENHANCED TEMPORAL FEATURES =====
+        # 1. Seasonal signals (existing)
+        sin_month = da.sin(2 * np.pi * month_idx / 12).reshape(n_time, 1, 1)
+        cos_month = da.cos(2 * np.pi * month_idx / 12).reshape(n_time, 1, 1)
+        
+        # 2. Decadal progression (new)
+        decade_progress = (year - year.min()) / 10  # Linear decade trend
+        decade_progress = decade_progress.reshape(n_time, 1, 1)
+        
+        # Broadcast temporal features
+        temporal_features = [
+            da.broadcast_to(feat, (n_time, n_y, n_x))
+            for feat in [sin_month, cos_month, decade_progress]
+        ]
+        
+        # ===== INPUT PROCESSING =====
+        input_arrays = {}  # Store for interaction calculations
         for var in input_variables:
             da_var = ds[var].sel(ssp=ssp)
-            if "latitude" in da_var.dims:   # rename spatial dims once
-                da_var = da_var.rename({"latitude": "y", "longitude": "x"})
             if "member_id" in da_var.dims:
                 da_var = da_var.sel(member_id=m)
-
-            if set(da_var.dims) == {"time"}:        # global -> broadcast
+            if "latitude" in da_var.dims:
+                da_var = da_var.rename({"latitude": "y", "longitude": "x"})
+                
+            # Handle different variable types
+            if set(da_var.dims) == {"time"}:
                 da_var = da_var.broadcast_like(spatial_template).transpose("time", "y", "x")
             elif set(da_var.dims) != {"time", "y", "x"}:
                 raise ValueError(f"Unexpected dims {da_var.dims} for {var}")
-
+                
+            # Store for potential interactions
+            input_arrays[var] = da_var.data
             ssp_input_dasks.append(da_var.data)
-
-        # time × C_in × y × x  (for one member)
+        
+        # ===== ADD ENGINEERED FEATURES =====
+        # 1. Temporal features
+        ssp_input_dasks.extend(temporal_features)
+        
+        # 2. Variable interactions (using existing inputs)
+        # Aerosol interaction
+        if 'SO2' in input_arrays and 'BC' in input_arrays:
+            aerosol_interaction = input_arrays['SO2'] * input_arrays['BC']
+            ssp_input_dasks.append(aerosol_interaction)
+            
+        # Greenhouse gas ratio
+        if 'CO2' in input_arrays and 'CH4' in input_arrays:
+            # Use safe division to avoid NaN
+            ghg_ratio = input_arrays['CO2'] / da.maximum(input_arrays['CH4'], 1e-6)
+            ssp_input_dasks.append(ghg_ratio)
+            
+        # Radiation-adjusted CO2 (logarithmic forcing approximation)
+        if 'CO2' in input_arrays and 'rsdt' in input_arrays:
+            # Use log(1 + CO2) to approximate radiative forcing
+            co2_rad = da.log(1 + input_arrays['CO2']) * input_arrays['rsdt']
+            ssp_input_dasks.append(co2_rad)
+        
+        # Stack inputs (time × C × y × x)
         input_members.append(da.stack(ssp_input_dasks, axis=1))
-
-        # ---------- OUTPUTS ----------
+        
+        # ===== OUTPUT PROCESSING =====
+        ssp_output_dasks = []
         for var in output_variables:
             da_out = ds[var].sel(ssp=ssp, member_id=m)
             if "latitude" in da_out.dims:
                 da_out = da_out.rename({"latitude": "y", "longitude": "x"})
             ssp_output_dasks.append(da_out.data)
-
-        # time × C_out × y × x  (for one member)
         output_members.append(da.stack(ssp_output_dasks, axis=1))
 
-    # concat the *members* along time, keeping chronology per member
+    # Concatenate members along time dimension
     stacked_input = da.concatenate(input_members, axis=0)
     stacked_output = da.concatenate(output_members, axis=0)
     return stacked_input, stacked_output
+# def _load_process_ssp_data(
+#     ds,
+#     ssp: str,
+#     input_variables: list[str],
+#     output_variables: list[str],
+#     member_ids: list[int],
+#     spatial_template: xr.DataArray,
+# ):
+#     """
+#     Returns inputs & outputs for **all requested ensemble members**,
+#     concatenated on the *time* axis (time × channels × y × x).
+#     """
+#     input_members, output_members = [], []
+    
+#     # Precompute spatial dimensions from template
+#     n_y, n_x = spatial_template.sizes['y'], spatial_template.sizes['x']
+    
+#     for m in member_ids:
+#         ssp_input_dasks = []
+#         time_coord = None
+
+#         # ---------- PROCESS OUTPUT FIRST TO GET TIME DIMENSION ----------
+#         # Get time coordinate from output variable (guaranteed to have full spatiotemporal dims)
+#         da_out0 = ds[output_variables[0]].sel(ssp=ssp, member_id=m)
+#         if "latitude" in da_out0.dims:
+#             da_out0 = da_out0.rename({"latitude": "y", "longitude": "x"})
+#         time_coord = da_out0.time
+#         n_time = len(time_coord)
+
+#         # ---------- SEASONAL SIGNAL GENERATION ----------
+#         # Compute month indices (0-11) using dask
+#         month_idx = (time_coord.dt.month - 1).data  # Dask array
+        
+#         # Compute seasonal signals with automatic broadcasting
+#         sin_month = da.sin(2 * np.pi * month_idx / 12).reshape(n_time, 1, 1)
+#         cos_month = da.cos(2 * np.pi * month_idx / 12).reshape(n_time, 1, 1)
+        
+#         # Broadcast to spatial dimensions
+#         sin_broadcast = da.broadcast_to(sin_month, (n_time, n_y, n_x))
+#         cos_broadcast = da.broadcast_to(cos_month, (n_time, n_y, n_x))
+        
+#         # ---------- INPUT PROCESSING WITH SEASONAL CHANNELS ----------
+#         for var in input_variables:
+#             da_var = ds[var].sel(ssp=ssp)
+#             if "member_id" in da_var.dims:
+#                 da_var = da_var.sel(member_id=m)
+#             if "latitude" in da_var.dims:
+#                 da_var = da_var.rename({"latitude": "y", "longitude": "x"})
+                
+#             # Handle global variables (time-only)
+#             if set(da_var.dims) == {"time"}:
+#                 da_var = da_var.broadcast_like(spatial_template).transpose("time", "y", "x")
+#             elif set(da_var.dims) != {"time", "y", "x"}:
+#                 raise ValueError(f"Unexpected dims {da_var.dims} for {var}")
+                
+#             ssp_input_dasks.append(da_var.data)
+        
+#         # Append seasonal signals as new channels
+#         ssp_input_dasks.append(sin_broadcast)
+#         ssp_input_dasks.append(cos_broadcast)
+        
+#         # Stack all input channels (time × C × y × x)
+#         input_members.append(da.stack(ssp_input_dasks, axis=1))
+
+#         # ---------- OUTPUT PROCESSING (unchanged) ----------
+#         ssp_output_dasks = []
+#         for var in output_variables:
+#             da_out = ds[var].sel(ssp=ssp, member_id=m)
+#             if "latitude" in da_out.dims:
+#                 da_out = da_out.rename({"latitude": "y", "longitude": "x"})
+#             ssp_output_dasks.append(da_out.data)
+#         output_members.append(da.stack(ssp_output_dasks, axis=1))
+
+#     # Concatenate members along time dimension
+#     stacked_input = da.concatenate(input_members, axis=0)
+#     stacked_output = da.concatenate(output_members, axis=0)
+#     return stacked_input, stacked_output
+    
+    # input_members, output_members = [], []
+
+    # for m in member_ids:
+    #     ssp_input_dasks, ssp_output_dasks = [], []
+
+    #     # ---------- INPUTS ----------
+    #     for var in input_variables:
+    #         da_var = ds[var].sel(ssp=ssp)
+    #         if "latitude" in da_var.dims:   # rename spatial dims once
+    #             da_var = da_var.rename({"latitude": "y", "longitude": "x"})
+    #         if "member_id" in da_var.dims:
+    #             da_var = da_var.sel(member_id=m)
+
+    #         if set(da_var.dims) == {"time"}:        # global -> broadcast
+    #             da_var = da_var.broadcast_like(spatial_template).transpose("time", "y", "x")
+    #         elif set(da_var.dims) != {"time", "y", "x"}:
+    #             raise ValueError(f"Unexpected dims {da_var.dims} for {var}")
+
+    #         ssp_input_dasks.append(da_var.data)
+
+    #     # time × C_in × y × x  (for one member)
+    #     input_members.append(da.stack(ssp_input_dasks, axis=1))
+
+    #     # ---------- OUTPUTS ----------
+    #     for var in output_variables:
+    #         da_out = ds[var].sel(ssp=ssp, member_id=m)
+    #         if "latitude" in da_out.dims:
+    #             da_out = da_out.rename({"latitude": "y", "longitude": "x"})
+    #         ssp_output_dasks.append(da_out.data)
+
+    #     # time × C_out × y × x  (for one member)
+    #     output_members.append(da.stack(ssp_output_dasks, axis=1))
+
+    # # concat the *members* along time, keeping chronology per member
+    # stacked_input = da.concatenate(input_members, axis=0)
+    # stacked_output = da.concatenate(output_members, axis=0)
+    # return stacked_input, stacked_output
 
 
 class ClimateEmulationDataModule(LightningDataModule):
@@ -542,6 +705,9 @@ class ClimateEmulationModule(pl.LightningModule):
             trues_xr = create_climate_data_array(
                 trues_var, time_coords, lat_coords, lon_coords, var_name=var_name, var_unit=var_unit
             )
+
+            preds_xr = preds_xr.astype(np.float64)
+            trues_xr = trues_xr.astype(np.float64)
 
             # 1. Calculate weighted month-by-month RMSE over all samples
             diff_squared = (preds_xr - trues_xr) ** 2

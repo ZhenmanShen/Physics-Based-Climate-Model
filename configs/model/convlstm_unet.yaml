@@ -3,4 +3,4 @@
 type: convlstm_unet
 
 
-base_channels: 16
+base_channels: 32

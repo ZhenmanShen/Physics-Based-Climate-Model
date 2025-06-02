@@ -42,4 +42,4 @@ transform_map:
   tas:
     method: zscore
   pr:
-    method: zscore
+    method: log1p
