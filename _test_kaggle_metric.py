@@ -19,7 +19,7 @@ import numpy as np
 import xarray as xr
 
 from _climate_kaggle_metric import score as kaggle_score
-from src.utils import calculate_weighted_metric, create_climate_data_array, get_lat_weights
+from src.utils_final import calculate_weighted_metric, create_climate_data_array, get_lat_weights
 
 
 def test_metric_equivalence():
@@ -177,7 +177,7 @@ def test_metric_equivalence():
     var_names = ["tas", "pr"]
 
     # Import the common conversion function
-    from src.utils import convert_predictions_to_kaggle_format
+    from src.utils_final import convert_predictions_to_kaggle_format
 
     # Convert true values to Kaggle format
     solution = convert_predictions_to_kaggle_format(true_stacked, times, lats, lons, var_names)

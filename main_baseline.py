@@ -16,8 +16,6 @@ from lightning.pytorch.loggers import WandbLogger
 from omegaconf import DictConfig, OmegaConf
 from torch.utils.data import DataLoader, Dataset
 
-# Load data argumentation 
-from main_final import ClimateAugment
 
 try:
     import wandb  # Optional, for logging to Weights & Biases
@@ -25,7 +23,7 @@ except ImportError:
     wandb = None
 
 from src.models import get_model
-from src.utils_final import (
+from src.utils import (
     Normalizer,
     calculate_weighted_metric,
     convert_predictions_to_kaggle_format,
@@ -46,12 +44,7 @@ log = get_logger(__name__)
 
 # Dataset to precompute all tensors during initialization
 class ClimateDataset(Dataset):
-
-    # Updated __int__ for ClimateDataset so that it accept transform for data augmentation
-    def __init__(self, inputs_norm_dask, outputs_dask, output_is_normalized=True, transform=None):
-        # Update transform
-        self.transform = transform
-
+    def __init__(self, inputs_norm_dask, outputs_dask, output_is_normalized=True):
         # Store dataset size
         self.size = inputs_norm_dask.shape[0]
 
@@ -75,13 +68,8 @@ class ClimateDataset(Dataset):
     def __len__(self):
         return self.size
 
-    # Updated
     def __getitem__(self, idx):
-        x, y = self.input_tensors[idx], self.output_tensors[idx]
-        if self.transform:
-            x = self.transform(x)
-        return x, y
-        # return self.input_tensors[idx], self.output_tensors[idx]
+        return self.input_tensors[idx], self.output_tensors[idx]
 
 
 def _load_process_ssp_data(ds, ssp, input_variables, output_variables, member_id, spatial_template):
@@ -256,11 +244,8 @@ class ClimateEmulationDataModule(LightningDataModule):
             test_input_norm_dask = self.normalizer.normalize(sliced_test_input_dask, data_type="input")
             test_output_raw_dask = sliced_test_output_raw_dask  # Keep unnormed for evaluation
 
-        # Update: Implemented transformation
-        train_transform = ClimateAugment(flip_prob=0.5, noise_std=0.01, scale_range=(0.98, 1.02))
-
         # Create datasets
-        self.train_dataset = ClimateDataset(train_input_norm_dask, train_output_norm_dask, output_is_normalized=True, transform=train_transform) # Applied transform to the training set
+        self.train_dataset = ClimateDataset(train_input_norm_dask, train_output_norm_dask, output_is_normalized=True)
         self.val_dataset = ClimateDataset(val_input_norm_dask, val_output_norm_dask, output_is_normalized=True)
         self.test_dataset = ClimateDataset(test_input_norm_dask, test_output_raw_dask, output_is_normalized=False)
 
@@ -421,42 +406,40 @@ class ClimateEmulationModule(pl.LightningModule):
             time_std_mae = calculate_weighted_metric(std_abs_diff, area_weights, ("y", "x"), "mae")
             self.log(f"{phase}/{var_name}/time_stddev_mae", float(time_std_mae), **log_kwargs)
 
-            # Extra logging of sample predictions/images to wandb for test phase (feel free to use this for validation)
-            if is_test:
-                # Generate visualizations for test phase when using wandb
-                if isinstance(self.logger, WandbLogger):
-                    # Time mean visualization
-                    fig = create_comparison_plots(
-                        true_time_mean,
-                        pred_time_mean,
-                        title_prefix=f"{var_name} Mean",
-                        metric_value=time_mean_rmse,
-                        metric_name="Weighted RMSE",
-                    )
-                    self.logger.experiment.log({f"img/{var_name}/time_mean": wandb.Image(fig)})
-                    plt.close(fig)
+            # Generate visualizations for test phase when using wandb
+            if isinstance(self.logger, WandbLogger):
+                # Time mean visualization
+                fig = create_comparison_plots(
+                    true_time_mean,
+                    pred_time_mean,
+                    title_prefix=f"{var_name} Mean",
+                    metric_value=time_mean_rmse,
+                    metric_name="Weighted RMSE",
+                )
+                self.logger.experiment.log({f"img/{var_name}/time_mean": wandb.Image(fig)})
+                plt.close(fig)
 
-                    # Time standard deviation visualization
-                    fig = create_comparison_plots(
-                        true_time_std,
-                        pred_time_std,
-                        title_prefix=f"{var_name} Stddev",
-                        metric_value=time_std_mae,
-                        metric_name="Weighted MAE",
-                        cmap="plasma",
-                    )
-                    self.logger.experiment.log({f"img/{var_name}/time_Stddev": wandb.Image(fig)})
-                    plt.close(fig)
+                # Time standard deviation visualization
+                fig = create_comparison_plots(
+                    true_time_std,
+                    pred_time_std,
+                    title_prefix=f"{var_name} Stddev",
+                    metric_value=time_std_mae,
+                    metric_name="Weighted MAE",
+                    cmap="plasma",
+                )
+                self.logger.experiment.log({f"img/{var_name}/time_Stddev": wandb.Image(fig)})
+                plt.close(fig)
 
-                    # Sample timesteps visualization
-                    if n_timesteps > 3:
-                        timesteps = np.random.choice(n_timesteps, 3, replace=False)
-                        for t in timesteps:
-                            true_t = trues_xr.isel(time=t)
-                            pred_t = preds_xr.isel(time=t)
-                            fig = create_comparison_plots(true_t, pred_t, title_prefix=f"{var_name} Timestep {t}")
-                            self.logger.experiment.log({f"img/{var_name}/month_idx_{t}": wandb.Image(fig)})
-                            plt.close(fig)
+                # Sample timesteps visualization
+                if n_timesteps > 10:
+                    timesteps = [0, 12, 24, 36, 48, 60, 72, 84, 96, 108]
+                    for t in timesteps:
+                        true_t = trues_xr.isel(time=t)
+                        pred_t = preds_xr.isel(time=t)
+                        fig = create_comparison_plots(true_t, pred_t, title_prefix=f"{var_name} Timestep {t}")
+                        self.logger.experiment.log({f"img/{phase}/{var_name}/month_idx_{t}": wandb.Image(fig)})
+                        plt.close(fig)
 
     def on_validation_epoch_end(self):
         # Compute time-mean and time-stddev errors using all validation months

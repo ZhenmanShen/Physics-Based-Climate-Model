@@ -1,3 +1,4 @@
+# src/models/att_unet_convlstm.py ---------------------------------------------
 import torch
 import torch.nn as nn
 from typing import Tuple
@@ -106,3 +107,81 @@ class UNet(nn.Module):
         x  = self.up2(x, s2)       # (b, 32, 24, 36)
         x  = self.up1(x, s1)       # (b, 16, 48, 72)
         return self.head(x)
+
+class ConvLSTMCell(nn.Module):
+    def __init__(self, c_in, c_hid, kernel_size=3):
+        super().__init__()
+        pad = kernel_size // 2
+        self.conv = nn.Conv2d(c_in + c_hid, 4 * c_hid, kernel_size, padding=pad)
+
+    def forward(self, x, h_c):
+        h, c = h_c
+        gates = self.conv(torch.cat([x, h], dim=1))
+        i, f, o, g = gates.chunk(4, dim=1)
+        i, f, o = torch.sigmoid(i), torch.sigmoid(f), torch.sigmoid(o)
+        g = torch.tanh(g)
+        c_next = f * c + i * g
+        h_next = o * torch.tanh(c_next)
+        return h_next, c_next
+
+class ConvLSTM(nn.Module):
+    """Temporal depth T is handled outside (loop or be fed a 5-D tensor)."""
+    def __init__(self, c_in, c_hid, kernel_size=3):
+        super().__init__()
+        self.cell = ConvLSTMCell(c_in, c_hid, kernel_size)
+
+    def forward(self, x_seq):
+        # x_seq: (T, B, C, H, W)
+        h = torch.zeros_like(x_seq[0, :, :self.cell.conv.out_channels//4])
+        c = torch.zeros_like(h)
+        outs = []
+        for t in range(x_seq.size(0)):
+            h, c = self.cell(x_seq[t], (h, c))
+            outs.append(h)
+        return torch.stack(outs)          # (T, B, C_hid, H, W)
+
+
+class AttUNetConvLSTM(nn.Module):
+    def __init__(self, in_ch=5, out_ch=2, base=16, seq_len=3):
+        super().__init__()
+        self.seq_len = seq_len
+
+        # encoder (shared for each frame)
+        self.enc1 = ConvBlock(in_ch,        base)
+        self.enc2 = ConvBlock(base,         base * 2)
+        self.enc3 = ConvBlock(base * 2,     base * 4)
+        self.pool = nn.MaxPool2d(2)
+
+        # temporal bottleneck
+        self.convlstm = ConvLSTM(base * 4, base * 4)
+
+        # decoder
+        self.up2  = Up(base * 4, base * 2, base * 2)
+        self.up1  = Up(base * 2, base,     base)
+        self.head = nn.Conv2d(base, out_ch, 1)
+
+    def forward(self, x_seq):
+        """
+        x_seq : (B, T, C_in, H, W)   with T == self.seq_len
+        returns predictions for the *last* frame (B, C_out, H, W)
+        """
+        B, T, C, H, W = x_seq.shape
+        skips2, skips1, feats = [], [], []
+
+        # encode every frame
+        for t in range(T):
+            x = x_seq[:, t]          # (B,C,H,W)
+            s1 = self.enc1(x)        # (B,16,H,W)
+            s2 = self.enc2(self.pool(s1))
+            f3 = self.enc3(self.pool(s2))
+            skips1.append(s1); skips2.append(s2); feats.append(f3)
+
+        # aggregate through ConvLSTM
+        f3_seq = torch.stack(feats, dim=0)     # (T,B,C,H',W')
+        f3_time = self.convlstm(f3_seq)        # (T,B,C,H',W')
+        bott = f3_time[-1]                     # take last hidden state
+
+        # decode only last frame
+        d2 = self.up2(bott, skips2[-1])
+        d1 = self.up1(d2,   skips1[-1])
+        return self.head(d1)

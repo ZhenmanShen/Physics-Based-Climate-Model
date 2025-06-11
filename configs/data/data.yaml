@@ -28,11 +28,11 @@ num_workers: 6
 # --- per-variable normalization recipes ---
 transform_map:
   CO2:
-    method: log1p
+    method: zscore
   SO2:
     method: log1p
   CH4:
-    method: minimax
+    method: zscore
   BC:
     method: log1p
   rsdt:

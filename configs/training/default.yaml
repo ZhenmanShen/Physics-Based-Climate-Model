@@ -1,4 +1,4 @@
 # @package _global_.training
 
-lr: 1e-4 
-weight_decay: 1e-5 # Set your desired weight decay here
+lr: 5e-4 
+weight_decay: 0 # Set your desired weight decay here

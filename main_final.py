@@ -23,7 +23,7 @@ except ImportError:
     wandb = None
 
 from src.models import get_model
-from src.utils import (
+from src.utils_final import (
     Normalizer,
     calculate_weighted_metric,
     convert_predictions_to_kaggle_format,
@@ -167,39 +167,70 @@ def _load_process_ssp_data(
     concatenated on the *time* axis (time × channels × y × x).
     """
     input_members, output_members = [], []
-
+    
+    # Precompute spatial dimensions from template
+    n_y, n_x = spatial_template.sizes['y'], spatial_template.sizes['x']
+    
     for m in member_ids:
-        ssp_input_dasks, ssp_output_dasks = [], []
+        ssp_input_dasks = []
+        time_coord = None
 
-        # ---------- INPUTS ----------
+        # ---------- PROCESS OUTPUT FIRST TO GET TIME DIMENSION ----------
+        # Get time coordinate from output variable (guaranteed to have full spatiotemporal dims)
+        da_out0 = ds[output_variables[0]].sel(ssp=ssp, member_id=m)
+        if "latitude" in da_out0.dims:
+            da_out0 = da_out0.rename({"latitude": "y", "longitude": "x"})
+        time_coord = da_out0.time
+        n_time = len(time_coord)
+
+        # ---------- SEASONAL SIGNAL GENERATION ----------
+        # Compute month indices (0-11) using dask
+        month_idx = (time_coord.dt.month - 1).data  # Dask array
+        
+        # Compute seasonal signals with automatic broadcasting
+        sin_month = da.sin(2 * np.pi * month_idx / 12).reshape(n_time, 1, 1)
+        cos_month = da.cos(2 * np.pi * month_idx / 12).reshape(n_time, 1, 1)
+        
+        # Broadcast to spatial dimensions
+        sin_broadcast = da.broadcast_to(sin_month, (n_time, n_y, n_x))
+        cos_broadcast = da.broadcast_to(cos_month, (n_time, n_y, n_x))
+        
+        # ---------- INPUT PROCESSING WITH SEASONAL CHANNELS ----------
         for var in input_variables:
             da_var = ds[var].sel(ssp=ssp)
-            if "latitude" in da_var.dims:   # rename spatial dims once
-                da_var = da_var.rename({"latitude": "y", "longitude": "x"})
             if "member_id" in da_var.dims:
                 da_var = da_var.sel(member_id=m)
-
-            if set(da_var.dims) == {"time"}:        # global -> broadcast
+            if "latitude" in da_var.dims:
+                da_var = da_var.rename({"latitude": "y", "longitude": "x"})
+                
+            # Handle global variables (time-only)
+            if set(da_var.dims) == {"time"}:
                 da_var = da_var.broadcast_like(spatial_template).transpose("time", "y", "x")
             elif set(da_var.dims) != {"time", "y", "x"}:
                 raise ValueError(f"Unexpected dims {da_var.dims} for {var}")
-
+                
             ssp_input_dasks.append(da_var.data)
-
-        # time × C_in × y × x  (for one member)
+        
+        # Append seasonal signals as new channels
+        ssp_input_dasks.append(sin_broadcast)
+        ssp_input_dasks.append(cos_broadcast)
+        
+        # Stack all input channels (time × C × y × x)
         input_members.append(da.stack(ssp_input_dasks, axis=1))
 
-        # ---------- OUTPUTS ----------
+        # ---------- OUTPUT PROCESSING (unchanged) ----------
+        ssp_output_dasks = []
         for var in output_variables:
             da_out = ds[var].sel(ssp=ssp, member_id=m)
             if "latitude" in da_out.dims:
                 da_out = da_out.rename({"latitude": "y", "longitude": "x"})
             ssp_output_dasks.append(da_out.data)
-
-        # time × C_out × y × x  (for one member)
+            if var == "tas":
+            # Anything below 150 K is a placeholder / missing value in CMIP6 files
+                da_out = da_out.where(da_out >= 150, np.nan) # This is good!
         output_members.append(da.stack(ssp_output_dasks, axis=1))
 
-    # concat the *members* along time, keeping chronology per member
+    # Concatenate members along time dimension
     stacked_input = da.concatenate(input_members, axis=0)
     stacked_output = da.concatenate(output_members, axis=0)
     return stacked_input, stacked_output

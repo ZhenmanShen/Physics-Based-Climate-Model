@@ -145,3 +145,7 @@ python main.py data.path=/path/to/your/data.zarr trainer.strategy="ddp_find_unus
 # Resume training from (or evaluate) a specific checkpoint
 python main.py data.path=/path/to/your/data.zarr ckpt_path=/path/to/your/checkpoint.ckpt
 ```
+
+
+### How to set up each model
+simple_cnn -> 

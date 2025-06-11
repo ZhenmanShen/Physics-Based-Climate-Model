@@ -1,18 +1,3 @@
-fno_small - main.py - 67 epochs - local score: 0.159 
-fno_small - augment.py - epochs 76 - local score: 0.163
-unet_transformer - main.py - 60 epochs - local score: 0.161
-unet_transformer - augment.py - 65 epochs - local score 0.165
-cnn_transformer - main.py - 80 epochs - local score 0.160
-cnn_transformer - augment.py - 87 epochs - local score: 0.168
-cnn_unet_transformer - main.py - 45 epochs - local score: 0.160
-cnn_unet_transformer - main.py - 57 epochs - local score: 0.161
-
-Notes:
-- Seems non-deterministic models performs better
-- Training for epochs seems to improve the score (unet++ 50 epochs - 1.18 vs. unet++ 100 epochs - 1.08)
-- As long as val/loss doesn't go up, training is still meaningful 
-
-
 import logging
 from typing import Any, Dict
 import dask.array as da
@@ -45,141 +30,180 @@ log = get_logger(__name__)
 
 
 class Normalizer:
-    def __init__(self, transform_map: Dict[str, Dict[str, Any]]):
-        """
-        transform_map: e.g.
-        {
-          "CO2": {"method": "log1p"},
-          "pr":  {"method": "pow", "lambda": 1/3},
-          "rsdt": {"method": "minmax", "min": 0, "max": 550},
-          ...
-        }
-        """
-        self.transform_map = transform_map
-        self.stats_map: Dict[str, Dict[str, Any]] = {}
+    def __init__(self):
+        self.input_stats = {}  # Expects index-keyed map: {0: {'method': ..., 'params': {...}}, ...}
+        self.output_stats = {} # Expects index-keyed map
 
-    def _fit_zscore(self, array: da.Array):
-        mean = da.nanmean(array, axis=(0, 2, 3), keepdims=True).compute()
-        std = da.nanstd(array, axis=(0, 2, 3), keepdims=True).compute()
-        return mean, std
+    def set_input_statistics(self, transform_map_indexed):
+        log.info(f"Normalizer A: Setting input stats with index-keyed map: {list(transform_map_indexed.keys())}")
+        self.input_stats = transform_map_indexed
 
-    def _fit_minmax(self, array: da.Array):
-        min_val = da.nanmin(array, axis=(0, 2, 3), keepdims=True).compute()
-        max_val = da.nanmax(array, axis=(0, 2, 3), keepdims=True).compute()
-        return min_val, max_val
+    def set_output_statistics(self, transform_map_indexed):
+        log.info(f"Normalizer A: Setting output stats with index-keyed map: {list(transform_map_indexed.keys())}")
+        self.output_stats = transform_map_indexed
 
-    def fit(self, data_arrays: Dict[str, da.Array]):
-        """
-        Fit stats for each variable in data_arrays.
-        data_arrays[var_name] must be shape (time,1,y,x) or (time,y,x).
-        """
-        for var_name, array in data_arrays.items():
-            recipe = self.transform_map.get(var_name, {})
-            method = recipe.get("method", "zscore")
+    def normalize(self, data, data_type="input"):
+        stats_collection = self.input_stats if data_type == "input" else self.output_stats
+        if not stats_collection:
+            raise RuntimeError(f"Statistics for '{data_type}' not set.")
+
+        is_dask_array = isinstance(data, da.Array)
+        if not (isinstance(data, np.ndarray) or is_dask_array):
+            raise TypeError("Input 'data' must be a NumPy or Dask array.")
+
+        num_variables = data.shape[1]
+        output_slices = []
+        epsilon = 1e-8
+
+        for var_idx in range(num_variables):
+            current_var_data_slice = data[:, var_idx, :, :]
+            var_config = stats_collection.get(var_idx)
+
+            if var_config is None:
+                log.warning(f"No config for var index {var_idx} ({data_type}). Passing through.")
+                output_slices.append(current_var_data_slice)
+                continue
+
+            method = var_config['method']
+            params = var_config.get('params', {})
+            transformed_slice = None
 
             if method == "zscore":
-                mean, std = self._fit_zscore(array)
+                mean = params.get('mean')
+                std = params.get('std')
+                if mean is None or std is None:
+                    raise ValueError(f"Z-score params missing for var {var_idx}.")
+                transformed_slice = (current_var_data_slice - mean) / (std + epsilon)
+            elif method == "minimax":
+                min_val = params.get('min_val')
+                max_val = params.get('max_val')
+                if min_val is None or max_val is None:
+                    raise ValueError(f"Minimax params missing for var {var_idx}.")
+                range_val = max_val - min_val
+                current_scale = range_val if not np.isclose(range_val, 0) else 1.0 # Simplified for scalar/numpy
+                if hasattr(range_val, "__iter__") and not isinstance(range_val, str): # Array-like stats
+                    current_scale = (da.where(da.isclose(range_val, 0), 1.0, range_val) if is_dask_array 
+                                     else np.where(np.isclose(range_val, 0), 1.0, range_val))
+                transformed_slice = (current_var_data_slice - min_val) / current_scale
+            
+            # --- BEHAVIOR CHANGE TO MATCH NORMALIZER B ---
+            elif method == "log1p":
+                # Params 'mean' and 'std' are of the log1p-transformed data
+                mean_of_log = params.get('mean')
+                std_of_log = params.get('std')
+                if mean_of_log is None or std_of_log is None:
+                    raise ValueError(f"log1p method for var {var_idx} requires 'mean' and 'std' of log-transformed data in params.")
+                
+                # Apply log1p first
+                data_after_log1p = da.log1p(current_var_data_slice) if is_dask_array else np.log1p(current_var_data_slice)
+                # Then standardize
+                transformed_slice = (data_after_log1p - mean_of_log) / (std_of_log + epsilon)
 
-                self.stats_map[var_name] = {
-                    "method": "zscore",
-                    "mean": mean,
-                    "std": std,
-                }
+            elif method == "sqrt":
+                # Params 'mean' and 'std' are of the sqrt-transformed data
+                mean_of_sqrt = params.get('mean')
+                std_of_sqrt = params.get('std')
+                if mean_of_sqrt is None or std_of_sqrt is None:
+                    raise ValueError(f"sqrt method for var {var_idx} requires 'mean' and 'std' of sqrt-transformed data in params.")
 
-            elif method == "minmax":
-                # if user hard-coded min/max, use that; otherwise compute
-                if "min" in recipe and "max" in recipe:
-                    min_val = recipe["min"]
-                    max_val = recipe["max"]
-                else:
-                    min_val, max_val = self._fit_minmax(array)
+                data_after_sqrt = da.sqrt(current_var_data_slice) if is_dask_array else np.sqrt(current_var_data_slice)
+                transformed_slice = (data_after_sqrt - mean_of_sqrt) / (std_of_sqrt + epsilon)
 
-                self.stats_map[var_name] = {
-                    "method": "minmax",
-                    "min": min_val,
-                    "max": max_val,
-                }
+            elif method == "pow":
+                # Params 'lambda', 'mean', 'std' (mean/std are of power-transformed data)
+                exponent = params.get('lambda')
+                mean_of_pow = params.get('mean')
+                std_of_pow = params.get('std')
+                if exponent is None or mean_of_pow is None or std_of_pow is None:
+                     raise ValueError(f"pow method for var {var_idx} requires 'lambda', 'mean', and 'std' in params.")
 
-            elif method in ("log1p", "sqrt", "pow"):
-                # apply the non-linear, then fit zscore on the transformed array
-                if method == "log1p":
-                    transformed = da.log1p(array)
-                elif method == "sqrt":
-                    transformed = da.sqrt(array)
-                else:  # pow
-                    exponent = recipe.get("lambda", 1.0)
-                    transformed = array ** exponent
-
-                mean, std = self._fit_zscore(transformed)
-                entry: Dict[str, Any] = {
-                    "method": method,
-                    "mean": mean,
-                    "std": std,
-                }
-                if method == "pow":
-                    entry["lambda"] = exponent
-                self.stats_map[var_name] = entry
-
+                data_after_pow = current_var_data_slice ** exponent
+                transformed_slice = (data_after_pow - mean_of_pow) / (std_of_pow + epsilon)
+            # --- END OF BEHAVIOR CHANGE ---
             else:
-                raise ValueError(
-                    f"Unknown normalization method '{method}' for variable '{var_name}'"
-                )
+                raise ValueError(f"Unknown method '{method}' for var {var_idx}.")
+            
+            output_slices.append(transformed_slice)
 
-    def transform(self, array, var_name: str):
-        """
-        Apply normalization to `array` (dask or numpy) for variable `var_name`.
-        Returns normalized array of same type.
-        """
-        info = self.stats_map[var_name]
-        method = info["method"]
+        return da.stack(output_slices, axis=1) if is_dask_array else np.stack(output_slices, axis=1)
 
-        if method == "zscore":
-            return (array - info["mean"]) / info["std"]
+    def inverse_transform_output(self, data_norm):
+        stats_collection = self.output_stats
+        if not stats_collection:
+            raise RuntimeError("Output stats not set.")
 
-        if method == "minmax":
-            denom = info["max"] - info["min"] + 1e-9
-            return (array - info["min"]) / denom
+        is_dask_array = isinstance(data_norm, da.Array)
+        if not (isinstance(data_norm, np.ndarray) or is_dask_array):
+            raise TypeError("Input 'data_norm' must be a NumPy or Dask array.")
 
-        if method == "log1p":
-            return (da.log1p(array) - info["mean"]) / info["std"]
+        num_variables = data_norm.shape[1]
+        output_slices = []
+        epsilon = 1e-8 # Not typically needed for inverse unless std was 0
 
-        if method == "sqrt":
-            return (da.sqrt(array) - info["mean"]) / info["std"]
+        for var_idx in range(num_variables):
+            current_var_data_norm_slice = data_norm[:, var_idx, :, :]
+            var_config = stats_collection.get(var_idx)
 
-        if method == "pow":
-            exponent = info["lambda"]
-            return (array ** exponent - info["mean"]) / info["std"]
+            if var_config is None:
+                log.warning(f"No de-norm config for output var index {var_idx}. Passing through.")
+                output_slices.append(current_var_data_norm_slice)
+                continue
+            
+            method = var_config['method']
+            params = var_config.get('params', {})
+            denormalized_slice = None
 
-        raise ValueError(f"Unsupported method '{method}'")
+            if method == "zscore":
+                mean = params.get('mean')
+                std = params.get('std')
+                if mean is None or std is None:
+                    raise ValueError(f"Z-score params missing for inverse for var {var_idx}.")
+                denormalized_slice = current_var_data_norm_slice * std + mean
+            elif method == "minimax":
+                min_val = params.get('min_val')
+                max_val = params.get('max_val')
+                if min_val is None or max_val is None:
+                    raise ValueError(f"Minimax params missing for inverse for var {var_idx}.")
+                range_val = max_val - min_val
+                denormalized_slice = current_var_data_norm_slice * range_val + min_val
 
-    def inverse(self, array, var_name: str):
-        """
-        Inverse-transform a numpy array of normalized outputs back to the original scale.
-        """
-        info = self.stats_map[var_name]
-        method = info["method"]
+            # --- BEHAVIOR CHANGE TO MATCH NORMALIZER B ---
+            elif method == "log1p":
+                mean_of_log = params.get('mean')
+                std_of_log = params.get('std')
+                if mean_of_log is None or std_of_log is None:
+                    raise ValueError(f"log1p inverse params missing for var {var_idx}.")
+                # De-standardize first
+                de_standardized_slice = current_var_data_norm_slice * std_of_log + mean_of_log
+                # Then apply inverse non-linear
+                denormalized_slice = da.expm1(de_standardized_slice) if is_dask_array else np.expm1(de_standardized_slice)
+            
+            elif method == "sqrt":
+                mean_of_sqrt = params.get('mean')
+                std_of_sqrt = params.get('std')
+                if mean_of_sqrt is None or std_of_sqrt is None:
+                    raise ValueError(f"sqrt inverse params missing for var {var_idx}.")
+                de_standardized_slice = current_var_data_norm_slice * std_of_sqrt + mean_of_sqrt
+                denormalized_slice = de_standardized_slice ** 2
+            
+            elif method == "pow":
+                exponent = params.get('lambda')
+                mean_of_pow = params.get('mean')
+                std_of_pow = params.get('std')
+                if exponent is None or mean_of_pow is None or std_of_pow is None:
+                    raise ValueError(f"pow inverse params missing for var {var_idx}.")
+                de_standardized_slice = current_var_data_norm_slice * std_of_pow + mean_of_pow
+                # Handle potential negative numbers if exponent is non-integer before raising to 1/exponent
+                # This depends on the domain of your data after power transform.
+                # For simplicity, assuming de_standardized_slice will be non-negative if 1/exponent requires it.
+                denormalized_slice = de_standardized_slice ** (1.0 / exponent)
+            # --- END OF BEHAVIOR CHANGE ---
+            else:
+                raise ValueError(f"Unknown inverse method '{method}' for var {var_idx}.")
 
-        if method == "zscore":
-            return array * info["std"] + info["mean"]
-
-        if method == "minmax":
-            span = info["max"] - info["min"]
-            return array * span + info["min"]
-
-        if method == "log1p":
-            denorm = array * info["std"] + info["mean"]
-            return np.expm1(denorm)
-
-        if method == "sqrt":
-            denorm = array * info["std"] + info["mean"]
-            return denorm ** 2
-
-        if method == "pow":
-            denorm = array * info["std"] + info["mean"]
-            exponent = info["lambda"]
-            return denorm ** (1 / exponent)
-
-        raise ValueError(f"Unsupported method '{method}'")
+            output_slices.append(denormalized_slice)
+        
+        return da.stack(output_slices, axis=1) if is_dask_array else np.stack(output_slices, axis=1)
 
 
 def get_trainer_config(cfg: DictConfig, model=None) -> Dict[str, Any]:

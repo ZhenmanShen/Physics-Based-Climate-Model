@@ -432,13 +432,13 @@ class ClimateEmulationModule(pl.LightningModule):
                 plt.close(fig)
 
                 # Sample timesteps visualization
-                if n_timesteps > 3:
-                    timesteps = np.random.choice(n_timesteps, 3, replace=False)
+                if n_timesteps > 10:
+                    timesteps = [0, 12, 24, 36, 48, 60, 72, 84, 96, 108]
                     for t in timesteps:
                         true_t = trues_xr.isel(time=t)
                         pred_t = preds_xr.isel(time=t)
                         fig = create_comparison_plots(true_t, pred_t, title_prefix=f"{var_name} Timestep {t}")
-                        self.logger.experiment.log({f"img/{var_name}/month_idx_{t}": wandb.Image(fig)})
+                        self.logger.experiment.log({f"img/{phase}/{var_name}/month_idx_{t}": wandb.Image(fig)})
                         plt.close(fig)
 
     def on_validation_epoch_end(self):

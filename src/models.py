@@ -1,17 +1,17 @@
 import torch.nn as nn
 from omegaconf import DictConfig
-from .vit_climate import ViTClimate
 from .cnn_transformer import CNNTransformer
 from .cnn_transformer_attention import CNNTransformerAttention
-from .unet import UNet
-from .att_unet_convlstm import AttUNetConvLSTM
+from .unet_convlstm_attention import AttUNetConvLSTM
 
 def get_model(cfg: DictConfig):
     # Create model based on configuration
     model_kwargs = {k: v for k, v in cfg.model.items() if k != "type"}
     model_kwargs["n_input_channels"] = len(cfg.data.input_vars)
     model_kwargs["n_output_channels"] = len(cfg.data.output_vars)
-    if cfg.model.type == "cnn_transformer":
+    if cfg.model.type == "cnn_baseline":
+        model = SimpleCNN(**model_kwargs)
+    elif cfg.model.type == "cnn_transformer":
         return CNNTransformer(
             in_channels=len(cfg.data.input_vars),
             out_channels=len(cfg.data.output_vars),
@@ -21,15 +21,9 @@ def get_model(cfg: DictConfig):
             mlp_dim=cfg.model.mlp_dim,
             dropout=cfg.model.dropout
         )
-    elif cfg.model.type == "unet":
-        return UNet(
-            in_ch=len(cfg.data.input_vars),
-            out_ch=len(cfg.data.output_vars),
-            base=cfg.model.base_channels  # default 16
-        )
-    elif cfg.model.type == "convlstm_unet":
+    elif cfg.model.type == "unet_convlstm_attention":
         return AttUNetConvLSTM(
-            in_ch=len(cfg.data.input_vars),
+            in_ch=7,
             out_ch=len(cfg.data.output_vars),
             base=cfg.model.base_channels,
     )

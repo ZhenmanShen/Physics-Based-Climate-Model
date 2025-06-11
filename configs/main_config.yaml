@@ -1,8 +1,8 @@
 # @package _global_
 
 defaults:
-  - data: data
-  - model: convlstm_unet # Must change 
+  - data: default
+  - model: cnn_baseline # Must change 
   - training: default
   - trainer: default
   - _self_
