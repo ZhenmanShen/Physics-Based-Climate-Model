@@ -1,8 +1,8 @@
 # @package _global_
 
 defaults:
-  - data: default
-  - model: cnn_baseline # Must change 
+  - data: data
+  - model: unet_convlstm_attention # Must change 
   - training: default
   - trainer: default
   - _self_

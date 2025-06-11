@@ -23,7 +23,7 @@ except ImportError:
     wandb = None
 
 from src.models import get_model
-from src.utils import (
+from src.utils_baseline import (
     Normalizer,
     calculate_weighted_metric,
     convert_predictions_to_kaggle_format,

@@ -1,151 +1,146 @@
-# CSE 151B Competition Spring 2025 - Climate Emulation
+# Physics-Based Climate Model Emulator (CSE 151B - Spring 2025)
 
-This repository contains a starting point for the [CSE 151B](https://sites.google.com/view/cse151b-251b/151b-info) competition on climate emulation.
-It includes a basic PyTorch Lightning training script, a simple CNN model, a data loader for the provided Zarr dataset, a configuration system using Hydra, and a logging system using Weights & Biases.
-Its structure follows what we find to be useful in our own research projects, but you are free to modify it as needed.
+This repository contains our final submission for the CSE 151B Climate Emulation competition. We designed a deep learning pipeline to emulate a physics-based climate model, progressively improving baseline models with hybrid architectures, temporal memory, and data-aware engineering.
 
-## | Kaggle Competition Website
-    
-[CSE 151B Competition - Climate Emulation](https://www.kaggle.com/t/6f53c429d53099dc7cc590f9bf390b10)
+---
 
-## | Overview
+## 🌍 Overview
 
-This competition challenges participants to develop machine learning models that can accurately emulate a physics-based climate model to project future climate patterns under varying emissions scenarios. Your models will be evaluated on their ability to capture both spatial patterns and temporal variability - key requirements for actionable climate predictions.
+The task is to emulate monthly global climate outputs—surface air temperature (`tas`) and precipitation (`pr`)—using input forcings (e.g., `CO2`, `SO2`, `CH4`, `rsdt`, `BC`) across various emissions scenarios (SSPs). The dataset includes ensemble members for internal variability.
 
-  ### Description
-  Climate models are essential tools for understanding Earth's future climate, but they are computationally expensive to run. Machine learning approaches offer a promising alternative that 
-  could dramatically reduce computational costs while maintaining prediction accuracy. In this competition, you'll work with data from CMIP6 climate model simulations under different Shared 
-  Socioeconomic Pathway (SSP) scenarios.
+---
 
-  The training data consists of monthly climate variables (precipitation and temperature) from multiple SSP scenarios. 
-  Your task is to develop models that can predict these variables given various input variables including greenhouse gas concentrations and aerosols under new SSP scenarios. 
-  Success in this competition requires models that can:
-
-  1. Capture complex spatial patterns of climate variables across the globe
-  2. Accurately represent both mean climate states and temporal variability
-  3. Learn the physical relationships between input climate forcings and climate responses
-
-  This challenge simulates a real-world problem in climate science: using data from existing scenarios to predict climate under new scenarios, thereby reducing the need for expensive 
-  simulation runs.
-
-  ### Evaluation
-  Submissions are evaluated using a combination of area-weighted metrics that account for the different sizes of grid cells at different latitudes (cells near the equator cover more area than those near the poles):
-
-  1. **Monthly Area-Weighted RMSE**: Measures the accuracy of your model's monthly predictions. Calculated as: √(weighted_mean((prediction - actual)²))
-
-  2. **Decadal Mean Area-Weighted RMSE**: Specifically evaluates how well your model captures the spatial patterns in the time-averaged climate. This metric is particularly important for 
-  capturing long-term climate change signals. This metric is calculated as: √(weighted_mean((time_mean(predictions) - time_mean(actuals))²)), where time_mean is the mean over a 10-year period
-
-  3. **Decadal Standard Deviation Area-Weighted MAE**: Assesses how well your model represents the temporal variability at each location. This metric ensures models don't just predict the mean 
-  state correctly but also capture climate variability. This metric is calculated as: weighted_mean(abs(time_std(predictions) - time_std(actuals))), where time_std is the standard deviation over a 10-year period.
-
-  The final score is a weighted combination of these metrics across precipitation and temperature variables. Note that an important consideration for climate emulators is their computational efficiency (i.e., how quickly they can make predictions at inference time). We encourage you to consider this when designing your models, although this competition does not explicitly evaluate that.
-
-  ## | Dataset Details
-
-  For computational efficiency, the data have been coarsened to a (48, 72) lat-lon grid. 
-
-  Input Variables (also called Forcings):
-  - ``CO2`` - Carbon dioxide concentrations
-  - ``SO2`` - Sulfur dioxide emissions
-  - ``CH4`` - Methane concentrations
-  - ``BC`` - Black carbon emissions
-  - ``rsdt`` - Incoming solar radiation at top of atmosphere (can be useful to inject knowledge of the season/time of year)
-
-  Output Variables to Predict:
-  - ``tas`` - Surface air temperature (in Kelvin)
-  - ``pr`` - Precipitation rate (in mm/day)
-   
-   **Note:** You are free to use any or all of the input variables to make your predictions. 
-   Similarly, it is up to you how to predict the output variables (e.g. predict both tas and pr together, or predict them separately).
-
-  ### Data Structure
-
-  The dataset is stored in Zarr format, which efficiently handles large multidimensional arrays. The data includes:
-
-  - Spatial dimensions: Global grid with latitude (y) and longitude (x) coordinates
-  - Time dimension: Monthly climate data
-  - Member ID dimension: Each scenario was simulated three times (i.e. a 3-member ensemble). This is done to account for the internal variability of the climate system (i.e. the fact that the climate system can evolve differently even under the same external forcings). Thus, given any snapshot of monthly forcings, any of the corresponding monthly climate responses from any of the three ensemble members is a valid target.
-  - Multiple scenarios: Data from different Shared Socioeconomic Pathways (SSPs)
-    - Training: SSP126 (low emissions), SSP370 (high emissions), SSP585 (very high emissions)
-    - Validation: Last 10 years of SSP370
-    - Testing: SSP245 (intermediate emissions)
-  
-  Note: By default, the provided code uses a single ensemble as target for training and validation. It is up to you to decide if and how to use the other ensemble members.
-
-  ### Data Preparation
-
-  In the ``main.py`` script, the data is preprocessed with:
-  - Normalization of input and output variables (Z-score normalization)
-  - Handling of global input variables by broadcasting them to match spatial dimensions
-   
-  You can modify this preprocessing pipeline to suit your model architecture and requirements. 
-  For example, precipitation data follows a skewed distribution, which may benefit from alternative normalization methods.
- 
-### Data Visualization
-
-See the [notebooks/data-exploration-basic.ipynb](notebooks/data-exploration-basic.ipynb) notebook for a basic data exploration and visualization of the dataset.
-
-
-## | Getting Started
-
-1. Create a fresh virtual environment (we recommend python >= 3.10) and install the required dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-2. Download the zarr data files from the competition page and place them in a directory of your choice (you'll later need to specify it with the ``data.path`` argument).
-
-### Configuration
-
-This project uses Hydra for configuration management. The main configuration files are in the `configs/` directory:
-
-- `configs/main_config.yaml`: Main configuration file that includes other configuration files
-- `configs/data/default.yaml`: Dataset and data-loading related settings (e.g. data path and batch size)
-- `configs/model/simple_cnn.yaml`: Model architecture settings (e.g. architecture type, number of layers)
-- `configs/training/default.yaml`: Training parameters (e.g. learning rate)
-- `configs/trainer/default.yaml`: PyTorch Lightning Trainer settings (e.g. number of GPUs, precision)
-
-### Running the Model
-
-This codebase uses PyTorch Lightning for training. It is meant to be a starting point for your own model development.
-You may use any (or none) of the code provided here and are free to modify it as needed.
-
-To train the model with default settings:
-
-```bash
-python main.py data.path=/path/to/your/data.zarr
+## 📁 Project Structure
+```
+├── configs/                      # Hydra config files
+│   ├── data/
+│   │   ├── default.yaml
+│   │   └── data_final.yaml
+│   ├── model/
+│   │   ├── cnn_baseline.yaml
+│   │   ├── cnn_transformer.yaml
+│   │   ├── cnn_transformer_attention.yaml
+│   │   └── unet_convlstm_attention.yaml
+│   ├── trainer/
+│   │   ├── trainer/default.yaml
+│   ├── training/
+│   │   ├── training/default.yaml
+│   └── main_config.yaml
+├── data/processed.zarr/          # Dataset 
+├── notebooks/                    # Data exploration notebook
+│   └── data-exploration-basic.ipynb
+├── src/                          # Model architecture implementations & utilities
+│   ├── cnn_transformer.py
+│   ├── cnn_transformer_attention.py
+│   ├── unet_convlstm_attention.py
+│   ├── utils_baseline.py         # Utility functions for baseline/ensemble
+│   └── utils_final.py            # Utility functions for final model (include updated normalization)
+├── main_baseline.py              # Starter model (no changes)
+├── main_ensemble.py              # Uses all ensemble members and SSPs
+├── main_final.py                 # Final model with attention + temporal modeling
+├── README.md
+├── requirements.txt
+└── Makefile
 ```
 
-#### Logging
+---
 
-It is recommended to use Weights & Biases for logging.
-To enable logging, set `use_wandb=true` and specify your W&B (team) username with `wandb_entity=<your-wandb-username>`.
-You will need to create a project `cse-151b-competition` on Weights & Biases. 
-When logging is enabled, the training script will automatically log metrics, and hyperparameters to your W&B project.
-This will allow you to monitor your training runs and compare different experiments more conveniently from the W&B dashboard.
+## 🧠 Model Architectures
 
-#### Common Configuration Options
+| Model Name                  | Description |
+|----------------------------|-------------|
+| **cnn_baseline**           | Basic convolutional model from starter code (defined in `utils_baseline.py`). No temporal modeling. |
+| **cnn_transformer**        | Adds global spatial awareness via Transformer layers after a CNN encoder. |
+| **cnn_transformer_attention** | Same as `cnn_transformer` but includes CBAM (Convolutional Block Attention Module) for attention. |
+| **unet_convlstm_attention** | Final model: U-Net (for spatial features) + ConvLSTM (for temporal memory) with attention and seasonality. |
 
-Override configuration options from the command line:
+> **Note:** Only `unet_convlstm_attention` expects a temporal input (e.g. `seq_len=6`). Others use single frames.
 
-```bash
-# Use Weights & Biases for logging (recommended). Be sure to first create a project ``cse-151b-competition`` on wandb.
-python main.py data.path=/path/to/your/data.zarr use_wandb=true wandb_entity=<your-wandb-username>
+---
 
-# Change batch size and learning rate and use different batch size for validation
-python main.py data.path=/path/to/your/data.zarr data.batch_size=64 data.eval_batch_size=32 training.lr=1e-3
+## 🔧 Model Configuration Files
 
-# Change the number of epochs
-python main.py data.path=/path/to/your/data.zarr trainer.max_epochs=200
+Each model has a dedicated YAML config in `configs/model/`, where you can easily change hyperparameters like number of layers or embedding size.
 
-# Train on 4 GPUs with DistributedDataParallel (DDP) mode
-python main.py data.path=/path/to/your/data.zarr trainer.strategy="ddp_find_unused_parameters_false" trainer.devices=4 
+| YAML File                          | Associated Model                | Key Settings You Can Tune                        |
+|-----------------------------------|----------------------------------|--------------------------------------------------|
+| `cnn_baseline.yaml`               | `cnn_baseline` (from starter)    | Input/output channels, kernel size              |
+| `cnn_transformer.yaml`            | `cnn_transformer`                | `embed_dim`, `n_heads`, `depth`, `mlp_dim`      |
+| `cnn_transformer_attention.yaml`  | `cnn_transformer_attention`      | Same as above + CBAM attention                  |
+| `unet_convlstm_attention.yaml`    | `unet_convlstm_attention`        | `base` channel size, `seq_len`, temporal depth  |
 
-# Resume training from (or evaluate) a specific checkpoint
-python main.py data.path=/path/to/your/data.zarr ckpt_path=/path/to/your/checkpoint.ckpt
+To switch models, update `configs/main_config.yaml`:
+```yaml
+defaults:
+  - data: default
+  - model: cnn_transformer  # change to the desired model name
+  - training: default
+  - trainer: default
+  - _self_
+```
+For the **final model**, change ```data``` to ```data_final```
+```yaml
+defaults:
+  - data: data_final
+  - model: unet_convlstm_attention
+  - training: default
+  - trainer: default
+  - _self_
 ```
 
+---
 
-### How to set up each model
-simple_cnn -> 
+## 🧰 Utility Scripts
+| File               | Purpose                                                                                         |
+|--------------------|-------------------------------------------------------------------------------------------------|
+| `utils_baseline.py` | Used by `main_baseline.py` and `main_ensemble.py`. Handles standard data loading, metrics, plotting. |
+| `utils_final.py`    | Used by `main_final.py`. Adds variable-specific normalization, sliding window construction, and seasonal embeddings. |
+
+---
+
+## ⚙️ How to Run
+
+### Step 1 – Install Dependencies
+
+Set up your environment and install all required packages:
+
+```bash
+pip install -r requirements.txt
+```
+
+### Step 2 Run a Model
+
+You can run any of the three main scripts directly:
+
+```
+# Baseline CNN-Transformer (starter code + utils_baseline.py)
+python main_baseline.py
+
+# Ensemble-augmented CNN-Transformer (uses all SSPs + member IDs)
+python main_ensemble.py
+
+# Final model (U-Net + ConvLSTM with normalization and seasonality)
+python main_final.py
+```
+
+⚠️ Important: Before running a model, make sure ```configs/main_config.yaml``` is properly configured.
+
+For ```main_baseline.py``` or ```main_ensemble.py```, use 
+```
+defaults:
+  - data: default
+  - model: cnn_transformer  # or cnn_baseline, cnn_transformer_attention
+  - training: default
+  - trainer: default
+  - _self_
+```
+
+For ```main_final.py```, use 
+```
+defaults:
+  - data: data_final
+  - model: unet_convlstm_attention
+  - training: default
+  - trainer: default
+  - _self_
+```
