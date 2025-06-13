@@ -30,7 +30,7 @@ class AttUNetConvLSTM(nn.Module):
         self.seq_len = seq_len
 
         # Per-frame Encoder (deeper: 4 stages)
-        self.enc1 = ConvBlock(in_ch+6, base)          # H, W, base
+        self.enc1 = ConvBlock(in_ch, base)          # H, W, base
         self.enc2 = DownPoolEnc(base, base * 2)     # H/2, W/2, base*2
         self.enc3 = DownPoolEnc(base * 2, base * 4) # H/4, W/4, base*4
         self.enc4 = DownPoolEnc(base * 4, base * 8) # H/8, W/8, base*8 (features for ConvLSTM)
