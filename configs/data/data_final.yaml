@@ -20,10 +20,9 @@ train_ssps:
   - "ssp585"
 test_ssp: "ssp245"
 test_months: 360
-seq_len: 6
+seq_len: 1
 
 batch_size: 64 # Nvidia GPU has headroom, CHANGE to 32 if not using Nvidia GPU
-num_workers: 6
 
 # --- per-variable normalization recipes ---
 transform_map:

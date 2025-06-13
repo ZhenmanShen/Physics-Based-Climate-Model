@@ -3,6 +3,7 @@ from omegaconf import DictConfig
 from .cnn_transformer import CNNTransformer
 from .cnn_transformer_attention import CNNTransformerAttention
 from .unet_convlstm_attention import AttUNetConvLSTM
+from .unet import UNet
 
 def get_model(cfg: DictConfig):
     # Create model based on configuration
@@ -27,6 +28,12 @@ def get_model(cfg: DictConfig):
             out_ch=len(cfg.data.output_vars),
             base=cfg.model.base_channels,
     )
+    elif cfg.model.type == "unet":
+        return UNet(
+            in_ch=len(cfg.data.input_vars),
+            out_ch=len(cfg.data.output_vars),
+            base=cfg.model.base_channels  # default 16
+        )
     elif cfg.model.type == "cnn_transformer_attention":
         return CNNTransformerAttention(
             in_channels=len(cfg.data.input_vars),

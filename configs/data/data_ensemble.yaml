@@ -1,0 +1,25 @@
+# @package _global_.data
+
+path: data/processed.zarr  # Path to the processed Zarr dataset
+
+input_vars: 
+  - "CO2"
+  - "SO2"
+  - "CH4"
+  - "BC"
+  - "rsdt"
+
+output_vars:
+  - "tas"
+  - "pr"
+member_ids: [0, 1, 2] # updated so train on all ensemble members 
+
+train_ssps: 
+  - "ssp126"
+  - "ssp370"
+  - "ssp585"
+test_ssp: "ssp245"
+test_months: 360
+
+
+batch_size: 64 # Nvidia GPU has headroom, CHANGE to 32 if not using Nvidia GPU

@@ -72,61 +72,55 @@ class ClimateDataset(Dataset):
         return self.input_tensors[idx], self.output_tensors[idx]
 
 
-def _load_process_ssp_data(ds, ssp, input_variables, output_variables, member_id, spatial_template):
+def _load_process_ssp_data(
+    ds,
+    ssp: str,
+    input_variables: list[str],
+    output_variables: list[str],
+    member_ids: list[int],
+    spatial_template: xr.DataArray,
+):
     """
-    Loads and processes input and output variables for a single SSP using Dask.
-
-    Args:
-        ds (xr.Dataset): The opened xarray dataset.
-        ssp (str): The SSP identifier (e.g., 'ssp126').
-        input_variables (list): List of input variable names.
-        output_variables (list): List of output variable names.
-        member_id (int): The member ID to select.
-        spatial_template (xr.DataArray): A template DataArray with ('y', 'x') dimensions
-                                          for broadcasting global variables.
-
-    Returns:
-        tuple: (input_dask_array, output_dask_array)
-               - input_dask_array: Stacked dask array of inputs (time, channels, y, x).
-               - output_dask_array: Stacked dask array of outputs (time, channels, y, x).
+    Returns inputs & outputs for **all requested ensemble members**,
+    concatenated on the *time* axis (time × channels × y × x).
     """
-    ssp_input_dasks = []
-    for var in input_variables:
-        da_var = ds[var].sel(ssp=ssp)
-        # Rename spatial dims if needed
-        if "latitude" in da_var.dims:
-            da_var = da_var.rename({"latitude": "y", "longitude": "x"})
-        # Select member if applicable
-        if "member_id" in da_var.dims:
-            da_var = da_var.sel(member_id=member_id)
+    input_members, output_members = [], []
 
-        # Process based on dimensions
-        if set(da_var.dims) == {"time"}:  # Global variable, broadcast to spatial dims:
-            # Broadcast like template, then transpose to ensure ('time', 'y', 'x')
-            da_var_expanded = da_var.broadcast_like(spatial_template).transpose("time", "y", "x")
-            ssp_input_dasks.append(da_var_expanded.data)
-        elif set(da_var.dims) == {"time", "y", "x"}:  # Spatially resolved
+    for m in member_ids:
+        ssp_input_dasks, ssp_output_dasks = [], []
+
+        # ---------- INPUTS ----------
+        for var in input_variables:
+            da_var = ds[var].sel(ssp=ssp)
+            if "latitude" in da_var.dims:   # rename spatial dims once
+                da_var = da_var.rename({"latitude": "y", "longitude": "x"})
+            if "member_id" in da_var.dims:
+                da_var = da_var.sel(member_id=m)
+
+            if set(da_var.dims) == {"time"}:        # global -> broadcast
+                da_var = da_var.broadcast_like(spatial_template).transpose("time", "y", "x")
+            elif set(da_var.dims) != {"time", "y", "x"}:
+                raise ValueError(f"Unexpected dims {da_var.dims} for {var}")
+
             ssp_input_dasks.append(da_var.data)
-        else:
-            raise ValueError(f"Unexpected dimensions for variable {var} in SSP {ssp}: {da_var.dims}")
 
-    # Stack inputs along channel dimension -> dask array (time, channels, y, x)
-    stacked_input_dask = da.stack(ssp_input_dasks, axis=1)
+        # time × C_in × y × x  (for one member)
+        input_members.append(da.stack(ssp_input_dasks, axis=1))
 
-    # Prepare output dask arrays for each output variable
-    output_dasks = []
-    for var in output_variables:
-        da_output = ds[var].sel(ssp=ssp, member_id=member_id)
-        # Ensure output also uses y, x if necessary
-        if "latitude" in da_output.dims:
-            da_output = da_output.rename({"latitude": "y", "longitude": "x"})
+        # ---------- OUTPUTS ----------
+        for var in output_variables:
+            da_out = ds[var].sel(ssp=ssp, member_id=m)
+            if "latitude" in da_out.dims:
+                da_out = da_out.rename({"latitude": "y", "longitude": "x"})
+            ssp_output_dasks.append(da_out.data)
 
-        # Add time, y, x dimensions as a dask array
-        output_dasks.append(da_output.data)
+        # time × C_out × y × x  (for one member)
+        output_members.append(da.stack(ssp_output_dasks, axis=1))
 
-    # Stack outputs along channel dimension -> dask array (time, channels, y, x)
-    stacked_output_dask = da.stack(output_dasks, axis=1)
-    return stacked_input_dask, stacked_output_dask
+    # concat the *members* along time, keeping chronology per member
+    stacked_input = da.concatenate(input_members, axis=0)
+    stacked_output = da.concatenate(output_members, axis=0)
+    return stacked_input, stacked_output
 
 
 class ClimateEmulationDataModule(LightningDataModule):
@@ -137,7 +131,7 @@ class ClimateEmulationDataModule(LightningDataModule):
         output_vars: list,
         train_ssps: list,
         test_ssp: str,
-        target_member_id: int,
+        member_ids: list,
         test_months: int = 360,
         batch_size: int = 32,
         eval_batch_size: int = None,
@@ -148,6 +142,7 @@ class ClimateEmulationDataModule(LightningDataModule):
         self.save_hyperparameters()
         self.hparams.path = to_absolute_path(path)
         self.normalizer = Normalizer()
+        self.hparams.member_ids = list(member_ids)
 
         # Set evaluation batch size to training batch size if not specified
         if eval_batch_size is None:
@@ -175,7 +170,7 @@ class ClimateEmulationDataModule(LightningDataModule):
             train_inputs_dask_list, train_outputs_dask_list = [], []
             val_input_dask, val_output_dask = None, None
             val_ssp = "ssp370"
-            val_months = 120
+            val_months = 1080 # <- Change this to change the validation size
 
             # Process all SSPs
             log.info(f"Loading data from SSPs: {self.hparams.train_ssps}")
@@ -186,7 +181,7 @@ class ClimateEmulationDataModule(LightningDataModule):
                     ssp,
                     self.hparams.input_vars,
                     self.hparams.output_vars,
-                    self.hparams.target_member_id,
+                    self.hparams.member_ids,
                     spatial_template_da,
                 )
 
@@ -202,6 +197,18 @@ class ClimateEmulationDataModule(LightningDataModule):
                     # All other SSPs go entirely to training
                     train_inputs_dask_list.append(ssp_input_dask)
                     train_outputs_dask_list.append(ssp_output_dask)
+
+            # ---------- Patch validation to member 0 only ----------
+            # (ssp370-member0 was not loaded yet, so load it once now)
+            v_in, v_out = _load_process_ssp_data(
+                ds, val_ssp,
+                self.hparams.input_vars,
+                self.hparams.output_vars,
+                (2,),                                # ← SINGLE member tuple
+                spatial_template_da,
+            )
+            val_input_dask  = v_in[-val_months:]
+            val_output_dask = v_out[-val_months:]
 
             # Concatenate training data only
             train_input_dask = da.concatenate(train_inputs_dask_list, axis=0)
@@ -230,7 +237,7 @@ class ClimateEmulationDataModule(LightningDataModule):
                 self.hparams.test_ssp,
                 self.hparams.input_vars,
                 self.hparams.output_vars,
-                self.hparams.target_member_id,
+                (0,),
                 spatial_template_da,
             )
 
@@ -406,6 +413,7 @@ class ClimateEmulationModule(pl.LightningModule):
             time_std_mae = calculate_weighted_metric(std_abs_diff, area_weights, ("y", "x"), "mae")
             self.log(f"{phase}/{var_name}/time_stddev_mae", float(time_std_mae), **log_kwargs)
 
+            
             # Generate visualizations for test phase when using wandb
             if isinstance(self.logger, WandbLogger):
                 # Time mean visualization
@@ -416,7 +424,7 @@ class ClimateEmulationModule(pl.LightningModule):
                     metric_value=time_mean_rmse,
                     metric_name="Weighted RMSE",
                 )
-                self.logger.experiment.log({f"img/{var_name}/time_mean": wandb.Image(fig)})
+                self.logger.experiment.log({f"img/{phase}/{var_name}/time_mean": wandb.Image(fig)})
                 plt.close(fig)
 
                 # Time standard deviation visualization
@@ -428,10 +436,12 @@ class ClimateEmulationModule(pl.LightningModule):
                     metric_name="Weighted MAE",
                     cmap="plasma",
                 )
-                self.logger.experiment.log({f"img/{var_name}/time_Stddev": wandb.Image(fig)})
+                self.logger.experiment.log({f"img/{phase}/{var_name}/time_Stddev": wandb.Image(fig)})
                 plt.close(fig)
 
                 # Sample timesteps visualization
+                # if n_timesteps > 3:
+                #     timesteps = np.random.choice(n_timesteps, 3, replace=False)
                 if n_timesteps > 10:
                     timesteps = [0, 12, 24, 36, 48, 60, 72, 84, 96, 108]
                     for t in timesteps:
@@ -474,6 +484,67 @@ class ClimateEmulationModule(pl.LightningModule):
         # Save predictions for Kaggle submission. This is the file that should be uploaded to Kaggle.
         log.info("Saving Kaggle submission...")
         self._save_kaggle_submission(all_preds_denorm)
+    
+    def _visualize_highest_loss(self, predictions, targets, losses):
+        # Get number of evaluation timesteps
+        n_timesteps = predictions.shape[0]
+
+        # Get area weights for proper spatial averaging
+        area_weights = self.trainer.datamodule.get_lat_weights()
+
+        # Get coordinates
+        lat_coords, lon_coords = self.trainer.datamodule.get_coords()
+        time_coords = np.arange(n_timesteps)
+        output_vars = self.trainer.datamodule.hparams.output_vars
+
+        # Process each output variable
+        for i, var_name in enumerate(output_vars):
+            # Extract channel data
+            preds_var = predictions[:, i, :, :]
+            trues_var = targets[:, i, :, :]
+
+            var_unit = "mm/day" if var_name == "pr" else "K" if var_name == "tas" else "unknown"
+
+            # Create xarray objects for weighted calculations
+            preds_xr = create_climate_data_array(
+                preds_var, time_coords, lat_coords, lon_coords, var_name=var_name, var_unit=var_unit
+            )
+            trues_xr = create_climate_data_array(
+                trues_var, time_coords, lat_coords, lon_coords, var_name=var_name, var_unit=var_unit
+            )
+
+            # Generate visualizations for test phase when using wandb
+            if isinstance(self.logger, WandbLogger):
+                
+                topk = 2
+                topk_indices = losses.topk(topk).indices
+
+                for t in topk_indices:
+                    true_t = trues_xr.isel(time=t)
+                    pred_t = preds_xr.isel(time=t)
+                    fig = create_comparison_plots(true_t, pred_t, title_prefix=f"{var_name} Timestep {t}")
+                    self.logger.experiment.log({f"img/train/{var_name}/month_idx_{t}": wandb.Image(fig)})
+                    plt.close(fig)
+                    
+    def on_train_end(self):
+        dataloader = self.trainer.datamodule.train_dataloader()
+        self.eval()
+        outputs = []
+        with torch.no_grad():
+            for batch in dataloader:
+                x, y_true = batch
+                y_pred = self(x.to(self.device))
+                loss = self.criterion(y_pred, y_true.to(self.device))
+                # loss = self.customloss(y_pred, y_true.to(self.device))
+                y_pred = self.normalizer.inverse_transform_output(y_pred.detach().cpu().numpy())
+                y_true = self.normalizer.inverse_transform_output(y_true.detach().cpu().numpy())
+                outputs.append((y_pred, y_true, loss.detach().cpu().item()))
+
+        all_preds_denorm = np.concatenate([pred for pred, true, loss in outputs], axis=0)
+        all_trues_denorm = np.concatenate([true for pred, true, loss in outputs], axis=0)
+        all_losses = torch.tensor([loss for pred, true, loss in outputs])
+
+        self._visualize_highest_loss(all_preds_denorm, all_trues_denorm, all_losses)
 
         self.test_step_outputs.clear()  # Clear the outputs list
 
