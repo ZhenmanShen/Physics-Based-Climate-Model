@@ -119,7 +119,7 @@ For ```main_baseline.py```, use
 ```
 defaults:
   - data: default
-  - model: cnn_transformer  # or cnn_baseline, cnn_transformer_attention
+  - model: cnn_transformer  # or SimpleCNN
   - training: default
   - trainer: default
   - _self_
@@ -129,7 +129,7 @@ For ```main_ensemble.py```, use
 ```
 defaults:
   - data: data_ensemble
-  - model: cnn_transformer  # or cnn_baseline, cnn_transformer_attention
+  - model: cnn_transformer  # or SimpleCNN
   - training: default
   - trainer: default
   - _self_
