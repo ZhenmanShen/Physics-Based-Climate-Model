@@ -1,7 +1,6 @@
 import torch.nn as nn
 from omegaconf import DictConfig
 from .cnn_transformer import CNNTransformer
-from .cnn_transformer_attention import CNNTransformerAttention
 from .unet_convlstm_attention import AttUNetConvLSTM
 from .unet import UNet
 
@@ -33,16 +32,6 @@ def get_model(cfg: DictConfig):
             in_ch=len(cfg.data.input_vars),
             out_ch=len(cfg.data.output_vars),
             base=cfg.model.base_channels  # default 16
-        )
-    elif cfg.model.type == "cnn_transformer_attention":
-        return CNNTransformerAttention(
-            in_channels=len(cfg.data.input_vars),
-            out_channels=len(cfg.data.output_vars),
-            embed_dim=cfg.model.embed_dim,
-            depth=cfg.model.depth,
-            n_heads=cfg.model.n_heads,
-            mlp_dim=cfg.model.mlp_dim,
-            dropout=cfg.model.dropout
         )
     else:
         raise ValueError(f"Unknown model type: {cfg.model.type}")

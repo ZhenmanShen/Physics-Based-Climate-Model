@@ -38,14 +38,14 @@ class ConvBlock(nn.Module):
             nn.Conv2d(c_out, c_out, 3, padding=1, bias=False),
             nn.GroupNorm(8, c_out), nn.SiLU(inplace=True),
         )
-        # self.se   = SEBlock(c_out)
-        # self.spat = SpatialGate()
+        self.se   = SEBlock(c_out)
+        self.spat = SpatialGate()
 
     def forward(self, x):
         
         x = self.body(x)
-        # x = self.se(x)
-        # x = self.spat(x)
+        x = self.se(x)
+        x = self.spat(x)
         return x
 
 class Down(nn.Module):
