@@ -9,7 +9,7 @@ def get_model(cfg: DictConfig):
     model_kwargs = {k: v for k, v in cfg.model.items() if k != "type"}
     model_kwargs["n_input_channels"] = len(cfg.data.input_vars)
     model_kwargs["n_output_channels"] = len(cfg.data.output_vars)
-    if cfg.model.type == "cnn_baseline":
+    if cfg.model.type == "SimpleCNN":
         model = SimpleCNN(**model_kwargs)
     elif cfg.model.type == "cnn_transformer":
         return CNNTransformer(
