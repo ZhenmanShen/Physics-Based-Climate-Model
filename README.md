@@ -77,15 +77,6 @@ defaults:
   - trainer: default
   - _self_
 ```
-For the **final model**, change ```data``` to ```data_final```
-```yaml
-defaults:
-  - data: data_final
-  - model: unet_convlstm_attention
-  - training: default
-  - trainer: default
-  - _self_
-```
 
 ---
 
