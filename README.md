@@ -15,11 +15,11 @@ The task is to emulate monthly global climate outputs—surface air temperature 
 ├── configs/                      # Hydra config files
 │   ├── data/
 │   │   ├── default.yaml
+│   │   ├── data_ensemble.yaml
 │   │   └── data_final.yaml
 │   ├── model/
 │   │   ├── cnn_baseline.yaml
 │   │   ├── cnn_transformer.yaml
-│   │   ├── cnn_transformer_attention.yaml
 │   │   └── unet_convlstm_attention.yaml
 │   ├── trainer/
 │   │   ├── trainer/default.yaml
@@ -31,10 +31,10 @@ The task is to emulate monthly global climate outputs—surface air temperature 
 │   └── data-exploration-basic.ipynb
 ├── src/                          # Model architecture implementations & utilities
 │   ├── cnn_transformer.py
-│   ├── cnn_transformer_attention.py
 │   ├── unet_convlstm_attention.py
 │   ├── utils_baseline.py         # Utility functions for baseline/ensemble
-│   └── utils_final.py            # Utility functions for final model (include updated normalization)
+│   ├── utils_final.py            # Utility functions for final model (include updated normalization)
+│   └── ...
 ├── main_baseline.py              # Starter model (no changes)
 ├── main_ensemble.py              # Uses all ensemble members and SSPs
 ├── main_final.py                 # Final model with attention + temporal modeling
