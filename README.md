@@ -50,7 +50,7 @@ The task is to emulate monthly global climate outputs—surface air temperature 
 
 | Model Name                  | Description |
 |----------------------------|-------------|
-| **cnn_baseline**           | Basic convolutional model from starter code (defined in `utils_baseline.py`). No temporal modeling. |
+| **SimpleCNN**            | Basic convolutional model from starter code (defined in `utils_baseline.py`). No temporal modeling. |
 | **cnn_transformer**        | Adds global spatial awareness via Transformer layers after a CNN encoder. |
 | **unet_convlstm_attention** | Final model: U-Net (for spatial features) + ConvLSTM (for temporal memory) with attention and seasonality. |
 
