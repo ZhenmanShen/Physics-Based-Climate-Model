@@ -18,7 +18,7 @@ The task is to emulate monthly global climate outputs—surface air temperature 
 │   │   ├── data_ensemble.yaml
 │   │   └── data_final.yaml
 │   ├── model/
-│   │   ├── cnn_baseline.yaml
+│   │   ├── SimpleCNN.yaml
 │   │   ├── cnn_transformer.yaml
 │   │   └── unet_convlstm_attention.yaml
 │   ├── trainer/
@@ -51,7 +51,6 @@ The task is to emulate monthly global climate outputs—surface air temperature 
 |----------------------------|-------------|
 | **cnn_baseline**           | Basic convolutional model from starter code (defined in `utils_baseline.py`). No temporal modeling. |
 | **cnn_transformer**        | Adds global spatial awareness via Transformer layers after a CNN encoder. |
-| **cnn_transformer_attention** | Same as `cnn_transformer` but includes CBAM (Convolutional Block Attention Module) for attention. |
 | **unet_convlstm_attention** | Final model: U-Net (for spatial features) + ConvLSTM (for temporal memory) with attention and seasonality. |
 
 > **Note:** Only `unet_convlstm_attention` expects a temporal input (e.g. `seq_len=6`). Others use single frames.
@@ -64,9 +63,8 @@ Each model has a dedicated YAML config in `configs/model/`, where you can easily
 
 | YAML File                          | Associated Model                | Key Settings You Can Tune                        |
 |-----------------------------------|----------------------------------|--------------------------------------------------|
-| `cnn_baseline.yaml`               | `cnn_baseline` (from starter)    | Input/output channels, kernel size              |
+| `SimpleCNN.yaml`                  | `SimpleCNN`                      | Input/output channels, kernel size              |
 | `cnn_transformer.yaml`            | `cnn_transformer`                | `embed_dim`, `n_heads`, `depth`, `mlp_dim`      |
-| `cnn_transformer_attention.yaml`  | `cnn_transformer_attention`      | Same as above + CBAM attention                  |
 | `unet_convlstm_attention.yaml`    | `unet_convlstm_attention`        | `base` channel size, `seq_len`, temporal depth  |
 
 To switch models, update `configs/main_config.yaml`:
@@ -125,10 +123,20 @@ python main_final.py
 
 ⚠️ Important: Before running a model, make sure ```configs/main_config.yaml``` is properly configured.
 
-For ```main_baseline.py``` or ```main_ensemble.py```, use 
+For ```main_baseline.py```, use 
 ```
 defaults:
   - data: default
+  - model: cnn_transformer  # or cnn_baseline, cnn_transformer_attention
+  - training: default
+  - trainer: default
+  - _self_
+```
+
+For ```main_ensemble.py```, use 
+```
+defaults:
+  - data: data_ensemble
   - model: cnn_transformer  # or cnn_baseline, cnn_transformer_attention
   - training: default
   - trainer: default
