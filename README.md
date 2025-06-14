@@ -32,6 +32,7 @@ The task is to emulate monthly global climate outputs—surface air temperature 
 ├── src/                          # Model architecture implementations & utilities
 │   ├── cnn_transformer.py
 │   ├── unet_convlstm_attention.py
+│   ├── models.py                 # SimpleCNN implementation resides in models.py
 │   ├── utils_baseline.py         # Utility functions for baseline/ensemble
 │   ├── utils_final.py            # Utility functions for final model (include updated normalization)
 │   └── ...
